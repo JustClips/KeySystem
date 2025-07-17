@@ -80,6 +80,123 @@
       .counter-label { font-size: 0.9em; }
       .counter-value { font-size: 1em; }
     }
+    /* --- TOP NAV BAR --- */
+    .top-nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 22;
+      background: rgba(20,24,40,0.73);
+      box-shadow: 0 2px 20px #37467722;
+      backdrop-filter: blur(13px) saturate(130%);
+      border-bottom: 1.5px solid #7b61ff22;
+      padding: 0 30px;
+      gap: 30px;
+      user-select: none;
+    }
+    .nav-btn {
+      color: #aac8ff;
+      background: none;
+      border: none;
+      font-size: 1.12em;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      letter-spacing: 2px;
+      padding: 10px 32px;
+      border-radius: 15px;
+      margin: 0 14px;
+      cursor: pointer;
+      box-shadow: 0 2px 12px #7b61ff22;
+      transition: background 0.15s, color 0.13s, transform 0.11s;
+      outline: none;
+    }
+    .nav-btn.active,
+    .nav-btn:hover {
+      background: linear-gradient(90deg, #5e7fff33 0%, #4ab6fc22 100%);
+      color: #fff;
+      transform: translateY(-2px) scale(1.02);
+    }
+    /* --- SCRIPTS MODAL --- */
+    .scripts-modal {
+      display: none;
+      position: fixed;
+      top: 74px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 95vw;
+      max-width: 700px;
+      background: rgba(22,25,41,0.93);
+      box-shadow: 0 6px 32px #4459b988;
+      border-radius: 22px;
+      z-index: 99;
+      padding: 36px 24px 38px 24px;
+      animation: slideDown .33s;
+      border: 1.5px solid #99cfff17;
+      backdrop-filter: blur(14px) saturate(122%);
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translate(-50%, -30px);}
+      to { opacity: 1; transform: translate(-50%, 0);}
+    }
+    .scripts-modal-header {
+      font-size: 1.33em;
+      font-weight: 800;
+      color: #aeeaff;
+      letter-spacing: 1.4px;
+      margin-bottom: 18px;
+      user-select: none;
+    }
+    .scripts-search {
+      width: 100%;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 12px;
+    }
+    .scripts-search input {
+      width: 100%;
+      max-width: 350px;
+      padding: 13px 16px;
+      border-radius: 12px;
+      border: 1.2px solid #4661aa55;
+      background: rgba(33, 44, 70, 0.39);
+      color: #e6f8ff;
+      font-size: 1.01em;
+      font-family: 'Montserrat', sans-serif;
+      transition: border 0.13s;
+      outline: none;
+    }
+    .scripts-search input:focus {
+      border: 1.5px solid #87bbffb7;
+      background: rgba(53, 84, 140, 0.15);
+    }
+    .close-scripts {
+      margin-left: 8px;
+      font-size: 1.7em;
+      color: #8fcaff;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 10px;
+      border-radius: 10px;
+      transition: background 0.13s;
+    }
+    .close-scripts:hover {
+      background: #304c7230;
+      color: #fff;
+    }
+    .scripts-list-empty {
+      color: #cbe9ff;
+      font-size: 1.1em;
+      text-align: center;
+      opacity: 0.69;
+      margin-top: 30px;
+      font-style: italic;
+    }
     /* --- MODAL AUTH BOX --- */
     .modal-outer {
       position: fixed;
@@ -336,6 +453,8 @@
       .forum-sidebar { padding: 14px 2vw 10px 2vw; font-size: 0.95em;}
       .forum-logo { font-size: 1.08em; margin-bottom: 16px; }
       .logout-btn { left: 8px; bottom: 12px; padding: 8px 11vw;}
+      .top-nav { height: 52px; padding: 0 7vw; }
+      .nav-btn { font-size: 0.98em; padding: 8px 15vw;}
     }
   </style>
 </head>
@@ -349,6 +468,23 @@
     <div class="counter-tab" id="keysTab">
       <span class="counter-label">Keys Generated</span>
       <span class="counter-value" id="keyCount">0</span>
+    </div>
+  </div>
+
+  <!-- Top nav bar -->
+  <div class="top-nav" id="topNav" style="display:none">
+    <button class="nav-btn" id="scriptsBtn">Scripts</button>
+  </div>
+
+  <!-- Scripts modal -->
+  <div class="scripts-modal" id="scriptsModal">
+    <div class="scripts-modal-header">Scripts</div>
+    <div class="scripts-search">
+      <input type="text" placeholder="Search scripts..." id="searchInput" disabled />
+      <button class="close-scripts" id="closeScriptsBtn" title="Close">&times;</button>
+    </div>
+    <div class="scripts-list-empty">
+      No scripts yet.<br>Upload coming soon!
     </div>
   </div>
 
@@ -476,7 +612,7 @@
       } catch (e) {}
     };
 
-    // --- Simple login/signup in LocalStorage (demo only) ---
+    // --- Simple login/signup in LocalStorage (demo only, persistent!) ---
     const modalAuth = document.getElementById("modalAuth");
     const forumWrap = document.getElementById("forumWrap");
     const authForm = document.getElementById("authForm");
@@ -485,6 +621,10 @@
     const authError = document.getElementById("authError");
     const toggleAuth = document.getElementById("toggleAuth");
     const logoutBtn = document.getElementById("logoutBtn");
+    const topNav = document.getElementById("topNav");
+    const scriptsBtn = document.getElementById("scriptsBtn");
+    const scriptsModal = document.getElementById("scriptsModal");
+    const closeScriptsBtn = document.getElementById("closeScriptsBtn");
     let isSignup = false;
     let users = {};
     if (localStorage.users) {
@@ -493,6 +633,8 @@
     function showForum() {
       modalAuth.style.display = "none";
       forumWrap.style.display = "";
+      topNav.style.display = "";
+      localStorage.loggedIn = "1";
     }
     function updateForm() {
       authTitle.textContent = isSignup ? "Sign Up" : "Sign In";
@@ -522,6 +664,7 @@
           users[user] = { pass };
           localStorage.users = JSON.stringify(users);
           authError.textContent = "";
+          localStorage.loggedIn = "1";
           showForum();
         }
       } else {
@@ -529,19 +672,45 @@
           authError.textContent = "Invalid username or password.";
         } else {
           authError.textContent = "";
+          localStorage.loggedIn = "1";
           showForum();
         }
       }
     };
     logoutBtn.onclick = () => {
       forumWrap.style.display = "none";
+      topNav.style.display = "none";
       modalAuth.style.display = "";
       authForm.reset();
       isSignup = false;
       updateForm();
+      localStorage.loggedIn = "";
+      scriptsModal.style.display = "none";
     };
-    // Optional: If you want auto-login if already in localStorage, uncomment next line:
-    // showForum();
+
+    // --- Persistent login after refresh ---
+    window.onload = function() {
+      if (localStorage.loggedIn === "1") {
+        showForum();
+      }
+    };
+
+    // --- Scripts Modal logic ---
+    scriptsBtn.onclick = () => {
+      scriptsModal.style.display = "block";
+      scriptsBtn.classList.add("active");
+    };
+    closeScriptsBtn.onclick = () => {
+      scriptsModal.style.display = "none";
+      scriptsBtn.classList.remove("active");
+    };
+    // Close scripts modal if clicked outside
+    window.addEventListener("mousedown", function(e) {
+      if (scriptsModal.style.display === "block" && !scriptsModal.contains(e.target) && e.target !== scriptsBtn) {
+        scriptsModal.style.display = "none";
+        scriptsBtn.classList.remove("active");
+      }
+    });
   </script>
 </body>
 </html>
