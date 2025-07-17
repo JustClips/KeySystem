@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Eps1llon Hub Key System</title>
+  <title>Eps1llonHub</title>
   <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400&display=swap" rel="stylesheet">
   <style>
     html, body {
@@ -15,164 +15,118 @@
     body {
       height: 100vh;
       width: 100vw;
+      background: #111322;
       font-family: 'Montserrat', sans-serif;
       display: flex;
       justify-content: center;
       align-items: center;
-      background: #0d1021;
-    }
-    #stars, #stars2, #stars3 {
-      position: fixed;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      z-index: 0;
-      pointer-events: none;
-      background-repeat: repeat;
-      background-position: 0 0;
-    }
-    #stars {
-      background-image: url('https://cdn.jsdelivr.net/gh/jaysalvat/image-set@master/starfield/starfield-1.png');
-      animation: animStar 150s linear infinite;
-      opacity: 0.6;
-    }
-    #stars2 {
-      background-image: url('https://cdn.jsdelivr.net/gh/jaysalvat/image-set@master/starfield/starfield-2.png');
-      animation: animStar 300s linear infinite;
-      opacity: 0.4;
-    }
-    #stars3 {
-      background-image: url('https://cdn.jsdelivr.net/gh/jaysalvat/image-set@master/starfield/starfield-3.png');
-      animation: animStar 600s linear infinite;
-      opacity: 0.2;
-    }
-    @keyframes animStar {
-      from {background-position: 0 0;}
-      to {background-position: -10000px 5000px;}
-    }
-    .content {
-      position: relative;
-      z-index: 2;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      width: 100vw;
-      min-height: 100vh;
     }
     .main-title {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       font-size: 3.5em;
       font-weight: 700;
       color: #fff;
       letter-spacing: 3px;
       text-shadow: 0 0 32px #76a8ff, 0 2px 10px #20254e;
-      margin-bottom: 12px;
-      margin-top: 0;
       animation: floatTitle 3.5s ease-in-out infinite;
+      z-index: 1;
+      white-space: nowrap;
     }
     @keyframes floatTitle {
-      0%, 100% { transform: translateY(0);}
-      50% { transform: translateY(-16px);}
+      0%, 100% { transform: translate(-50%, -50%) scale(1);}
+      50% { transform: translate(-50%, -52%) scale(1.04);}
     }
-    .container {
-      background: rgba(18, 18, 35, 0.96);
-      border-radius: 28px;
-      box-shadow: 0 8px 32px #000b;
-      padding: 36px 48px 30px 48px;
-      max-width: 380px;
-      width: 100%;
-      text-align: center;
-      margin: 24px auto;
-      margin-top: 0;
-      margin-bottom: 0;
-      z-index: 2;
-      animation: fadeIn 1.2s;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(60px);}
-      to { opacity: 1; transform: translateY(0);}
-    }
-    h2 {
-      font-size: 1.6em;
-      margin-bottom: 14px;
-      color: #b8cbff;
-      font-weight: 500;
-      letter-spacing: 1px;
-      margin-top: 0;
-    }
-    button {
-      margin-top: 22px;
-      padding: 13px 34px;
-      font-size: 1.25em;
-      font-weight: bold;
-      background: linear-gradient(90deg, #7b61ff 20%, #5377f6 80%);
-      border: none;
-      border-radius: 14px;
-      color: #fff;
-      box-shadow: 0 2px 18px #6b59fa55;
-      cursor: pointer;
-      transition: background 0.2s, box-shadow 0.2s;
-      outline: none;
-    }
-    button:hover {
-      background: linear-gradient(90deg, #6f41e6 20%, #4156b6 80%);
-      box-shadow: 0 4px 26px #6b59fa88;
-    }
-    .key-box {
-      margin-top: 20px;
-      font-size: 1.08em;
-      background: #232244ee;
-      border-radius: 12px;
-      padding: 16px;
-      word-break: break-all;
-      color: #9aefff;
-      box-shadow: 0 2px 12px #285ea777;
-      letter-spacing: 1px;
-      user-select: all;
-    }
-    .error {
-      color: #ff7f7f;
-      margin-top: 16px;
-      font-weight: 500;
-    }
-    @media (max-width: 500px) {
-      .container {
-        padding: 20px 8px 18px 8px;
-        max-width: 98vw;
-      }
-      .main-title {
-        font-size: 2.1em;
-      }
+    #bg-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      display: block;
+      background: #111322;
     }
   </style>
 </head>
 <body>
-  <!-- Animated star layers -->
-  <div id="stars"></div>
-  <div id="stars2"></div>
-  <div id="stars3"></div>
-  <div class="content">
-    <h1 class="main-title">Eps1llonHub</h1>
-    <div class="container">
-      <h2>Key System</h2>
-      <p>To get your key, <b>complete the Linkvertise steps</b> and click the button below.</p>
-      <button id="getKeyBtn">Get Key</button>
-      <div id="result"></div>
-    </div>
-  </div>
+  <canvas id="bg-canvas"></canvas>
+  <div class="main-title">Eps1llonHub</div>
   <script>
-    document.getElementById("getKeyBtn").onclick = async function() {
-      const btn = this;
-      btn.disabled = true;
-      btn.textContent = "Getting key...";
-      const r = await fetch('/get-key');
-      const d = await r.json();
-      if (d.key) {
-        document.getElementById("result").innerHTML = `<div class="key-box">Your Key: <b>${d.key}</b></div>`;
-      } else if (d.error) {
-        document.getElementById("result").innerHTML = `<div class="error">${d.error}<br>Next key at: <b>${new Date(d.nextKeyAt).toLocaleString()}</b></div>`;
+    // Simple particles + connections
+    const canvas = document.getElementById("bg-canvas");
+    const ctx = canvas.getContext("2d");
+    let w = window.innerWidth;
+    let h = window.innerHeight;
+    canvas.width = w;
+    canvas.height = h;
+
+    let dots = [];
+    const DOTS = Math.floor((w * h) / 6000) + 40;
+    const maxDist = 170;
+    const dotColor = "#8dbfff";
+    const lineColor = "rgba(119,175,255,0.18)";
+    function randomDot() {
+      return {
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.7,
+        vy: (Math.random() - 0.5) * 0.7,
+        r: Math.random() * 2.5 + 1.3
+      };
+    }
+    function resetDots() {
+      dots = [];
+      for(let i=0;i<DOTS;i++) dots.push(randomDot());
+    }
+    resetDots();
+
+    function animate() {
+      ctx.clearRect(0,0,w,h);
+      // Draw connections
+      for(let i=0;i<dots.length;i++) {
+        for(let j=i+1;j<dots.length;j++) {
+          let a = dots[i], b = dots[j];
+          let dx = a.x - b.x, dy = a.y - b.y;
+          let dist = Math.sqrt(dx*dx+dy*dy);
+          if(dist < maxDist) {
+            ctx.beginPath();
+            ctx.strokeStyle = lineColor;
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = (maxDist - dist) / maxDist * 0.8;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+          }
+        }
       }
-      btn.disabled = false;
-      btn.textContent = "Get Key";
-    };
+      // Draw dots
+      for(let dot of dots) {
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, dot.r, 0, Math.PI*2);
+        ctx.fillStyle = dotColor;
+        ctx.shadowColor = "#3e73ff";
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+      // Move dots
+      for(let dot of dots) {
+        dot.x += dot.vx;
+        dot.y += dot.vy;
+        if(dot.x < 0 || dot.x > w) dot.vx *= -1;
+        if(dot.y < 0 || dot.y > h) dot.vy *= -1;
+      }
+      requestAnimationFrame(animate);
+    }
+    animate();
+    window.addEventListener("resize", () => {
+      w = window.innerWidth; h = window.innerHeight;
+      canvas.width = w; canvas.height = h;
+      resetDots();
+    });
   </script>
 </body>
 </html>
