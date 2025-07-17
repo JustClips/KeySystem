@@ -25,127 +25,157 @@
       z-index: 0;
       background: #111322;
     }
-    /* --- COUNTERS ROW --- */
-    .counters-row.right {
+    /* --- TOP NAV --- */
+    .top-nav {
       position: fixed;
-      top: 26px;
-      right: 26px;
-      left: unset;
+      top: 0; left: 0; right: 0;
+      height: 62px;
       display: flex;
-      flex-direction: row;
-      gap: 16px;
-      z-index: 20;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 30;
+      background: rgba(20,24,40,0.79);
+      box-shadow: 0 2px 20px #37467722;
+      backdrop-filter: blur(13px) saturate(130%);
+      border-bottom: 1.5px solid #7b61ff22;
+      padding: 0 34px;
       user-select: none;
+      gap: 0;
+    }
+    .nav-counters {
+      display: flex;
+      gap: 14px;
+      align-items: center;
     }
     .counter-tab {
       background: rgba(20, 26, 44, 0.62);
       box-shadow: 0 4px 22px #323a5a22;
       border-radius: 20px;
-      padding: 10px 23px 10px 18px;
-      font-size: 1.05em;
+      padding: 8px 20px 8px 16px;
+      font-size: 1.02em;
       color: #eaf6ff;
       font-weight: 600;
       letter-spacing: 0.5px;
-      min-width: 105px;
+      min-width: 102px;
       backdrop-filter: blur(9px) saturate(140%);
       border: 1px solid rgba(115,145,205,0.12);
-      transition: background 0.19s;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
+      transition: background 0.19s;
     }
     .counter-label {
       color: #99cfff;
-      font-size: 0.97em;
+      font-size: 0.95em;
       font-weight: 700;
       margin-right: 4px;
     }
     .counter-value {
       color: #ffffff;
-      font-size: 1.09em;
+      font-size: 1.08em;
       font-weight: 800;
-      margin-left: 4px;
+      margin-left: 2px;
     }
-    @media (max-width: 600px) {
-      .counters-row.right {
-        top: 9px;
-        right: 8px;
-        gap: 6px;
-      }
-      .counter-tab {
-        padding: 7px 10px 7px 8px;
-        font-size: 0.88em;
-        min-width: 74px;
-      }
-      .counter-label { font-size: 0.9em; }
-      .counter-value { font-size: 1em; }
-    }
-    /* --- TOP NAV BAR --- */
-    .top-nav {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      height: 64px;
+    .nav-center {
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 22;
-      background: rgba(20,24,40,0.73);
-      box-shadow: 0 2px 20px #37467722;
-      backdrop-filter: blur(13px) saturate(130%);
-      border-bottom: 1.5px solid #7b61ff22;
-      padding: 0 30px;
-      gap: 30px;
-      user-select: none;
+      flex: 1 1 auto;
+      pointer-events: none;
     }
     .nav-btn {
+      pointer-events: auto;
       color: #aac8ff;
       background: none;
       border: none;
-      font-size: 1.12em;
+      font-size: 1.13em;
       font-family: 'Montserrat', sans-serif;
       font-weight: 700;
       letter-spacing: 2px;
-      padding: 10px 32px;
-      border-radius: 15px;
-      margin: 0 14px;
+      padding: 9px 36px;
+      border-radius: 14px;
+      margin: 0;
       cursor: pointer;
       box-shadow: 0 2px 12px #7b61ff22;
       transition: background 0.15s, color 0.13s, transform 0.11s;
       outline: none;
     }
-    .nav-btn.active,
-    .nav-btn:hover {
+    .nav-btn.active, .nav-btn:hover {
       background: linear-gradient(90deg, #5e7fff33 0%, #4ab6fc22 100%);
       color: #fff;
-      transform: translateY(-2px) scale(1.02);
+      transform: translateY(-2px) scale(1.04);
+    }
+    .profile-box {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: rgba(20, 26, 44, 0.61);
+      border-radius: 19px;
+      padding: 9px 18px 9px 17px;
+      box-shadow: 0 2px 10px #5477c722;
+      font-size: 1em;
+      color: #e5f2ff;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      min-width: 130px;
+      border: 1px solid rgba(115,145,205,0.09);
+      user-select: none;
+    }
+    .profile-uid {
+      color: #83e1ff;
+      font-size: 0.97em;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-left: 2px;
+      font-family: monospace, 'Montserrat', sans-serif;
+      opacity: 0.79;
+    }
+    .logout-link {
+      color: #eaa;
+      background: none;
+      border: none;
+      cursor: pointer;
+      margin-left: 16px;
+      font-size: 0.93em;
+      text-decoration: underline;
+      opacity: 0.73;
+      transition: opacity 0.12s;
+    }
+    .logout-link:hover {
+      opacity: 1;
+      color: #fff;
     }
     /* --- SCRIPTS MODAL --- */
     .scripts-modal {
       display: none;
       position: fixed;
-      top: 74px;
+      top: 92px;
       left: 50%;
       transform: translateX(-50%);
-      width: 95vw;
-      max-width: 700px;
-      background: rgba(22,25,41,0.93);
+      width: 97vw;
+      max-width: 500px;
+      min-width: 250px;
+      background: rgba(22,25,41,0.92);
       box-shadow: 0 6px 32px #4459b988;
-      border-radius: 22px;
+      border-radius: 23px;
       z-index: 99;
       padding: 36px 24px 38px 24px;
-      animation: slideDown .33s;
+      animation: slideDown .35s;
       border: 1.5px solid #99cfff17;
-      backdrop-filter: blur(14px) saturate(122%);
+      backdrop-filter: blur(18px) saturate(124%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
     @keyframes slideDown {
-      from { opacity: 0; transform: translate(-50%, -30px);}
+      from { opacity: 0; transform: translate(-50%, -38px);}
       to { opacity: 1; transform: translate(-50%, 0);}
     }
     .scripts-modal-header {
-      font-size: 1.33em;
+      font-size: 1.34em;
       font-weight: 800;
       color: #aeeaff;
-      letter-spacing: 1.4px;
+      letter-spacing: 1.5px;
       margin-bottom: 18px;
       user-select: none;
     }
@@ -159,11 +189,11 @@
     }
     .scripts-search input {
       width: 100%;
-      max-width: 350px;
+      max-width: 340px;
       padding: 13px 16px;
       border-radius: 12px;
       border: 1.2px solid #4661aa55;
-      background: rgba(33, 44, 70, 0.39);
+      background: rgba(33, 44, 70, 0.36);
       color: #e6f8ff;
       font-size: 1.01em;
       font-family: 'Montserrat', sans-serif;
@@ -176,13 +206,13 @@
     }
     .close-scripts {
       margin-left: 8px;
-      font-size: 1.7em;
+      font-size: 1.8em;
       color: #8fcaff;
       background: none;
       border: none;
       cursor: pointer;
-      padding: 4px 10px;
-      border-radius: 10px;
+      padding: 3px 13px;
+      border-radius: 12px;
       transition: background 0.13s;
     }
     .close-scripts:hover {
@@ -191,11 +221,12 @@
     }
     .scripts-list-empty {
       color: #cbe9ff;
-      font-size: 1.1em;
+      font-size: 1.07em;
       text-align: center;
-      opacity: 0.69;
-      margin-top: 30px;
+      opacity: 0.67;
+      margin-top: 34px;
       font-style: italic;
+      letter-spacing: 0.6px;
     }
     /* --- MODAL AUTH BOX --- */
     .modal-outer {
@@ -310,173 +341,46 @@
       background: none;
       opacity: 1;
     }
-    /* --- FORUM DASHBOARD --- */
-    .forum-wrap {
-      position: absolute;
-      left: 0; top: 0;
-      width: 100vw; height: 100vh;
-      z-index: 3;
-      display: flex;
-      flex-direction: row;
-      pointer-events: none;
-    }
-    .forum-sidebar {
-      width: 230px;
-      min-width: 100px;
-      max-width: 50vw;
-      height: 100vh;
-      background: rgba(23, 26, 45, 0.77);
-      backdrop-filter: blur(14px) saturate(135%);
-      border-right: 1.5px solid #7b61ff22;
-      box-shadow: 4px 0 22px #19308a12;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      padding: 48px 16px 28px 28px;
-      pointer-events: auto;
-    }
-    .forum-logo {
-      font-size: 1.43em;
-      font-weight: 700;
-      margin-bottom: 30px;
-      color: #a7cbff;
-      background: linear-gradient(90deg, #8de7ff 0%, #a7baff 90%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      letter-spacing: 2px;
-      user-select: none;
-    }
-    .forum-nav {
-      margin-top: 0;
-      margin-bottom: 14px;
-      font-weight: 600;
-      color: #6fbfff;
-      font-size: 1.07em;
-      letter-spacing: 0.7px;
-      background: none;
-      border: none;
-      outline: none;
-      cursor: pointer;
-      padding: 7px 0 7px 0;
-      border-radius: 7px;
-      width: 100%;
-      transition: background 0.15s;
-      text-align: left;
-      pointer-events: auto;
-    }
-    .forum-nav.active, .forum-nav:hover {
-      background: linear-gradient(90deg, #6d7aff33 0%, #2ebdff33 100%);
-      color: #b7d7ff;
-    }
-    .forum-main {
-      flex: 1;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
-      align-items: center;
-      background: transparent;
-      pointer-events: auto;
-      position: relative;
-      z-index: 1;
-    }
-    .forum-content {
-      margin-top: 78px;
-      width: 100%;
-      max-width: 800px;
-      min-height: 400px;
-      background: rgba(25, 30, 60, 0.66);
-      border-radius: 23px;
-      box-shadow: 0 2px 32px #3e51a333;
-      padding: 56px 32px 40px 32px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      backdrop-filter: blur(7px) saturate(122%);
-      border: 1.3px solid #a3d3ff1a;
-      pointer-events: auto;
-    }
-    .empty-icon {
-      font-size: 3em;
-      margin-bottom: 18px;
-      color: #86c9ff;
-      opacity: 0.45;
-      user-select: none;
-      pointer-events: none;
-    }
-    .empty-title {
-      font-size: 1.29em;
-      font-weight: 700;
-      color: #cbe9ff;
-      margin-bottom: 7px;
-      letter-spacing: 1px;
-    }
-    .empty-desc {
-      font-size: 1em;
-      color: #9dbaff;
-      opacity: 0.7;
-      margin-bottom: 2px;
-    }
-    .logout-btn {
-      position: absolute;
-      bottom: 32px;
-      left: 28px;
-      padding: 10px 25px;
-      border-radius: 8px;
-      background: linear-gradient(90deg, #2e3240 40%, #4ebcff80 100%);
-      color: #fff;
-      font-size: 1em;
-      font-family: 'Montserrat', sans-serif;
-      font-weight: 700;
-      border: none;
-      cursor: pointer;
-      box-shadow: 0 2px 8px #7b61ff15;
-      transition: background 0.13s, box-shadow 0.11s;
-      outline: none;
-      opacity: 0.82;
-      z-index: 10;
-    }
-    .logout-btn:hover {
-      background: linear-gradient(90deg, #2e3758 0%, #1ea2ff 90%);
-      opacity: 1;
-    }
     @media (max-width: 900px) {
-      .forum-wrap { flex-direction: column; }
-      .forum-sidebar { width: 100vw; height: auto; flex-direction: row; padding: 20px 3vw 14px 6vw;}
-      .forum-main { min-width: 0; }
-      .forum-content { margin-top: 30px; }
+      .top-nav { height: 56px; padding: 0 10vw;}
+      .profile-box { padding: 8px 7vw 8px 4vw;}
+      .counter-tab { padding: 7px 8vw 7px 4vw;}
     }
     @media (max-width: 600px) {
-      .forum-content { padding: 26px 4vw 16px 4vw; }
-      .forum-sidebar { padding: 14px 2vw 10px 2vw; font-size: 0.95em;}
-      .forum-logo { font-size: 1.08em; margin-bottom: 16px; }
-      .logout-btn { left: 8px; bottom: 12px; padding: 8px 11vw;}
-      .top-nav { height: 52px; padding: 0 7vw; }
-      .nav-btn { font-size: 0.98em; padding: 8px 15vw;}
+      .top-nav { height: 45px; padding: 0 2vw;}
+      .profile-box { padding: 6px 2vw 6px 2vw; font-size: 0.91em; }
+      .counter-tab { padding: 5px 2vw 5px 1vw; font-size: 0.89em;}
+      .nav-btn { font-size: 0.97em; padding: 8px 6vw;}
+      .scripts-modal { padding: 19px 2vw 17px 2vw; }
     }
   </style>
 </head>
 <body>
   <canvas id="bg-canvas"></canvas>
-  <div class="counters-row right">
-    <div class="counter-tab" id="onlineTab">
-      <span class="counter-label">Online Users</span>
-      <span class="counter-value" id="onlineCount">1</span>
-    </div>
-    <div class="counter-tab" id="keysTab">
-      <span class="counter-label">Keys Generated</span>
-      <span class="counter-value" id="keyCount">0</span>
-    </div>
-  </div>
-
-  <!-- Top nav bar -->
+  
+  <!-- NAV BAR: counters left, Scripts middle, profile right -->
   <div class="top-nav" id="topNav" style="display:none">
-    <button class="nav-btn" id="scriptsBtn">Scripts</button>
+    <div class="nav-counters">
+      <div class="counter-tab">
+        <span class="counter-label">Online Users</span>
+        <span class="counter-value" id="onlineCount">1</span>
+      </div>
+      <div class="counter-tab">
+        <span class="counter-label">Keys Generated</span>
+        <span class="counter-value" id="keyCount">0</span>
+      </div>
+    </div>
+    <div class="nav-center">
+      <button class="nav-btn" id="scriptsBtn">Scripts</button>
+    </div>
+    <div class="profile-box" id="profileBox">
+      <span id="profileUser"></span>
+      <span class="profile-uid" id="profileUID"></span>
+      <button class="logout-link" id="logoutBtn">Logout</button>
+    </div>
   </div>
 
-  <!-- Scripts modal -->
+  <!-- SCRIPTS MODAL -->
   <div class="scripts-modal" id="scriptsModal">
     <div class="scripts-modal-header">Scripts</div>
     <div class="scripts-search">
@@ -488,7 +392,7 @@
     </div>
   </div>
 
-  <!-- Modal login/signup -->
+  <!-- LOGIN MODAL -->
   <div class="modal-outer" id="modalAuth">
     <div class="modal-auth">
       <div class="auth-title" id="authTitle">Sign In</div>
@@ -499,22 +403,6 @@
       </form>
       <div class="auth-error" id="authError"></div>
       <div class="auth-toggle" id="toggleAuth">No account? <b>Sign Up</b></div>
-    </div>
-  </div>
-
-  <!-- Forum Dashboard -->
-  <div class="forum-wrap" style="display:none" id="forumWrap">
-    <div class="forum-sidebar">
-      <div class="forum-logo">Eps1llon Hub</div>
-      <button class="forum-nav active">Scripts</button>
-      <button class="logout-btn" id="logoutBtn">Logout</button>
-    </div>
-    <div class="forum-main">
-      <div class="forum-content">
-        <div class="empty-icon">📂</div>
-        <div class="empty-title">No scripts yet</div>
-        <div class="empty-desc">Upload coming soon!</div>
-      </div>
     </div>
   </div>
 
@@ -612,29 +500,50 @@
       } catch (e) {}
     };
 
-    // --- Simple login/signup in LocalStorage (demo only, persistent!) ---
+    // --- Login/signup (demo only, persistent) ---
     const modalAuth = document.getElementById("modalAuth");
-    const forumWrap = document.getElementById("forumWrap");
     const authForm = document.getElementById("authForm");
     const authTitle = document.getElementById("authTitle");
     const authBtn = document.getElementById("authBtn");
     const authError = document.getElementById("authError");
     const toggleAuth = document.getElementById("toggleAuth");
-    const logoutBtn = document.getElementById("logoutBtn");
     const topNav = document.getElementById("topNav");
     const scriptsBtn = document.getElementById("scriptsBtn");
     const scriptsModal = document.getElementById("scriptsModal");
     const closeScriptsBtn = document.getElementById("closeScriptsBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const profileBox = document.getElementById("profileBox");
+    const profileUser = document.getElementById("profileUser");
+    const profileUID = document.getElementById("profileUID");
     let isSignup = false;
     let users = {};
+    let currentUser = null;
+    let currentUID = null;
+
+    function generateUID(name) {
+      // Simple hash for UID (for demo use only)
+      let s = name + Date.now();
+      let hash = 0;
+      for (let i = 0; i < s.length; i++) {
+        hash = ((hash << 5) - hash) + s.charCodeAt(i);
+        hash |= 0;
+      }
+      return "U" + Math.abs(hash).toString().padStart(8, '0');
+    }
+
     if (localStorage.users) {
       try { users = JSON.parse(localStorage.users); } catch(e){}
     }
-    function showForum() {
+    function showNav(user, uid) {
       modalAuth.style.display = "none";
-      forumWrap.style.display = "";
       topNav.style.display = "";
+      currentUser = user;
+      currentUID = uid;
+      profileUser.textContent = user;
+      profileUID.textContent = "#" + uid;
       localStorage.loggedIn = "1";
+      localStorage.loggedUser = user;
+      localStorage.loggedUID = uid;
     }
     function updateForm() {
       authTitle.textContent = isSignup ? "Sign Up" : "Sign In";
@@ -661,43 +570,47 @@
         if (users[user]) {
           authError.textContent = "Username already exists.";
         } else {
-          users[user] = { pass };
+          const uid = generateUID(user);
+          users[user] = { pass, uid };
           localStorage.users = JSON.stringify(users);
           authError.textContent = "";
           localStorage.loggedIn = "1";
-          showForum();
+          localStorage.loggedUser = user;
+          localStorage.loggedUID = uid;
+          showNav(user, uid);
         }
       } else {
         if (!users[user] || users[user].pass !== pass) {
           authError.textContent = "Invalid username or password.";
         } else {
-          authError.textContent = "";
           localStorage.loggedIn = "1";
-          showForum();
+          localStorage.loggedUser = user;
+          localStorage.loggedUID = users[user].uid || generateUID(user);
+          showNav(user, localStorage.loggedUID);
         }
       }
     };
     logoutBtn.onclick = () => {
-      forumWrap.style.display = "none";
       topNav.style.display = "none";
       modalAuth.style.display = "";
       authForm.reset();
       isSignup = false;
       updateForm();
       localStorage.loggedIn = "";
+      localStorage.loggedUser = "";
+      localStorage.loggedUID = "";
       scriptsModal.style.display = "none";
     };
-
     // --- Persistent login after refresh ---
     window.onload = function() {
-      if (localStorage.loggedIn === "1") {
-        showForum();
+      if (localStorage.loggedIn === "1" && localStorage.loggedUser && localStorage.loggedUID) {
+        showNav(localStorage.loggedUser, localStorage.loggedUID);
       }
     };
 
     // --- Scripts Modal logic ---
     scriptsBtn.onclick = () => {
-      scriptsModal.style.display = "block";
+      scriptsModal.style.display = "flex";
       scriptsBtn.classList.add("active");
     };
     closeScriptsBtn.onclick = () => {
@@ -706,7 +619,7 @@
     };
     // Close scripts modal if clicked outside
     window.addEventListener("mousedown", function(e) {
-      if (scriptsModal.style.display === "block" && !scriptsModal.contains(e.target) && e.target !== scriptsBtn) {
+      if (scriptsModal.style.display === "flex" && !scriptsModal.contains(e.target) && e.target !== scriptsBtn) {
         scriptsModal.style.display = "none";
         scriptsBtn.classList.remove("active");
       }
