@@ -5,9 +5,11 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// MySQL connection
+// --- Debug: print exactly what Railway provides ---
+console.log('DB_HOST VALUE:', JSON.stringify(process.env.DB_HOST));
+
 const connection = mysql.createConnection({
-  host: process.env.DB_HOST,     // Railway will inject these
+  host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
   database: process.env.DB_NAME
@@ -16,7 +18,7 @@ const connection = mysql.createConnection({
 connection.connect((err) => {
   if (err) {
     console.error('MySQL connection error:', err);
-    process.exit(1); // Stop the app if can't connect
+    process.exit(1); // Crash on DB failure
   } else {
     console.log('Connected to DreamHost MySQL!');
   }
