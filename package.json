@@ -1,13 +1,13 @@
 {
-  "name": "epsilon-hub-key-system",
+  "name": "keysystem",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
     "cors": "^2.8.5",
-    "ws": "^8.15.1"
+    "express": "^4.18.2",
+    "sqlite3": "^5.1.6"
   }
 }
