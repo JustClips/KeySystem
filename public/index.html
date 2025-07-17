@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Eps1llon Hub Key System</title>
+  <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: #121212;
+      color: #fff;
+      font-family: 'Montserrat', sans-serif;
+      display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh;
+    }
+    .container {
+      background: #1e1e2f;
+      border-radius: 24px;
+      box-shadow: 0 8px 24px #0008;
+      padding: 32px 48px;
+      max-width: 350px;
+      width: 100%;
+      text-align: center;
+      margin: 16px;
+    }
+    h1 {
+      font-size: 2em;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+    }
+    button {
+      margin-top: 22px;
+      padding: 12px 28px;
+      font-size: 1.2em;
+      font-weight: bold;
+      background: #7b61ff;
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #5436e6; }
+    .key-box {
+      margin-top: 20px;
+      font-size: 1.1em;
+      background: #222238;
+      border-radius: 10px;
+      padding: 16px;
+      word-break: break-all;
+    }
+    .error {
+      color: #ff7f7f;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Eps1llon Hub Key System</h1>
+    <p>To get your key, <b>complete the Linkvertise steps</b> and click the button below.</p>
+    <button id="getKeyBtn">Get Key</button>
+    <div id="result"></div>
+  </div>
+  <script>
+    document.getElementById("getKeyBtn").onclick = async function() {
+      const btn = this;
+      btn.disabled = true;
+      btn.textContent = "Getting key...";
+      const r = await fetch('/get-key');
+      const d = await r.json();
+      if (d.key) {
+        document.getElementById("result").innerHTML = `<div class="key-box">Your Key: <b>${d.key}</b></div>`;
+      } else if (d.error) {
+        document.getElementById("result").innerHTML = `<div class="error">${d.error}<br>Next key at: <b>${new Date(d.nextKeyAt).toLocaleString()}</b></div>`;
+      }
+      btn.disabled = false;
+      btn.textContent = "Get Key";
+    };
+  </script>
+</body>
+</html>
