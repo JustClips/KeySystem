@@ -25,7 +25,6 @@
       z-index: 0;
       background: #111322;
     }
-    /* --- COUNTERS ROW --- */
     .counters-row {
       position: fixed;
       top: 26px;
@@ -78,6 +77,115 @@
       }
       .counter-label { font-size: 0.9em; }
       .counter-value { font-size: 1em; }
+    }
+    /* --- MODAL AUTH BOX --- */
+    .modal-outer {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(22,22,35,0.16);
+      z-index: 30;
+      min-height: 100vh;
+    }
+    .modal-auth {
+      background: rgba(20, 23, 40, 0.75);
+      box-shadow: 0 4px 32px #22317b77;
+      border-radius: 26px;
+      padding: 42px 40px 36px 40px;
+      min-width: 330px;
+      max-width: 95vw;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      backdrop-filter: blur(12px) saturate(120%);
+      border: 1.5px solid rgba(125,170,255,0.13);
+      margin: 0 12px;
+      animation: fadeIn 0.65s;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.98);}
+      to { opacity: 1; transform: scale(1);}
+    }
+    .auth-title {
+      font-size: 2.1em;
+      font-weight: 700;
+      letter-spacing: 2px;
+      margin-bottom: 22px;
+      color: #a7cbff;
+      background: linear-gradient(90deg, #82c6f9 0%, #d1bcfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .auth-form {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 17px;
+    }
+    .auth-input {
+      width: 230px;
+      padding: 13px 16px;
+      border-radius: 10px;
+      border: 1.1px solid #5063bb60;
+      background: rgba(32,40,68,0.45);
+      color: #f5fcff;
+      font-size: 1em;
+      font-family: 'Montserrat', sans-serif;
+      transition: border 0.18s;
+      outline: none;
+      margin-bottom: 2px;
+    }
+    .auth-input:focus {
+      border: 1.5px solid #87bbffb7;
+      background: rgba(53, 84, 140, 0.18);
+    }
+    .auth-btn {
+      width: 100%;
+      padding: 13px 0;
+      border-radius: 12px;
+      background: linear-gradient(90deg, #7b61ff 15%, #48b7ff 85%);
+      color: #fff;
+      font-size: 1.15em;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 2px 16px #7b61ff33;
+      transition: background 0.17s, box-shadow 0.14s, transform 0.12s;
+      margin-top: 7px;
+      margin-bottom: 0;
+    }
+    .auth-btn:active {
+      background: linear-gradient(90deg, #5e41d7 15%, #0f82c9 85%);
+      transform: scale(0.98);
+    }
+    .auth-error {
+      margin-top: 10px;
+      color: #ffb1b1;
+      font-weight: 600;
+      font-size: 0.96em;
+      letter-spacing: 0.7px;
+      text-align: center;
+    }
+    .auth-toggle {
+      margin-top: 17px;
+      font-size: 1em;
+      color: #7fbbff;
+      opacity: 0.87;
+      cursor: pointer;
+      text-align: center;
+      user-select: none;
+      transition: color 0.13s;
+      padding: 2px 3px;
+    }
+    .auth-toggle:hover {
+      color: #fff8aa;
+      text-decoration: underline;
+      opacity: 1;
     }
     /* --- MAIN UI --- */
     .center-content {
@@ -203,6 +311,7 @@
       .center-content {
         top: 19vh;
       }
+      .modal-auth { min-width: unset; padding: 26px 10vw 20px 10vw; }
     }
   </style>
 </head>
@@ -218,7 +327,22 @@
       <span class="counter-value" id="keyCount">0</span>
     </div>
   </div>
-  <div class="center-content">
+
+  <!-- Modal login/signup -->
+  <div class="modal-outer" id="modalAuth">
+    <div class="modal-auth">
+      <div class="auth-title" id="authTitle">Sign In</div>
+      <form class="auth-form" id="authForm">
+        <input class="auth-input" type="text" id="username" autocomplete="username" placeholder="Username" required />
+        <input class="auth-input" type="password" id="password" autocomplete="current-password" placeholder="Password" required />
+        <button type="submit" class="auth-btn" id="authBtn">Sign In</button>
+      </form>
+      <div class="auth-error" id="authError"></div>
+      <div class="auth-toggle" id="toggleAuth">No account? <b>Sign Up</b></div>
+    </div>
+  </div>
+
+  <div class="center-content" style="display:none" id="mainContent">
     <div class="glass-box">
       <div class="main-title">Eps1llon Hub</div>
       <div class="hold-btn-wrap">
@@ -230,6 +354,7 @@
       </div>
     </div>
   </div>
+
   <script>
     // --- Particles ---
     const canvas = document.getElementById("bg-canvas");
@@ -301,52 +426,54 @@
     });
 
     // --- Hold-to-generate logic + Counters ---
-    const holdBtn = document.getElementById("holdGenBtn");
-    const progressBar = holdBtn.querySelector(".progress");
-    let holdTimeout, holdStart;
-    let progressFrame;
-    const HOLD_TIME = 2000; // ms
+    function setupMainContent() {
+      const holdBtn = document.getElementById("holdGenBtn");
+      const progressBar = holdBtn.querySelector(".progress");
+      let holdTimeout, holdStart;
+      let progressFrame;
+      const HOLD_TIME = 2000; // ms
 
-    function resetProgress() {
-      progressBar.style.width = "0";
-    }
-    function setProgress(percent) {
-      progressBar.style.width = percent * 100 + "%";
-    }
-    function startHold(e) {
-      if (holdTimeout) return;
-      holdStart = Date.now();
-      setProgress(0);
-      function update() {
-        const elapsed = Date.now() - holdStart;
-        setProgress(Math.min(elapsed / HOLD_TIME, 1));
-        if (elapsed >= HOLD_TIME) {
-          holdTimeout = null;
-          setProgress(1);
-          // Call API to increment keys
-          fetch("/api/increment-keys", { method: "POST", headers: { "Content-Type": "application/json" }})
-            .then(res => res.json())
-            .then(d => { /* Optionally show success, etc. */ });
-        } else if (holdTimeout !== null) {
-          progressFrame = requestAnimationFrame(update);
+      function resetProgress() {
+        progressBar.style.width = "0";
+      }
+      function setProgress(percent) {
+        progressBar.style.width = percent * 100 + "%";
+      }
+      function startHold(e) {
+        if (holdTimeout) return;
+        holdStart = Date.now();
+        setProgress(0);
+        function update() {
+          const elapsed = Date.now() - holdStart;
+          setProgress(Math.min(elapsed / HOLD_TIME, 1));
+          if (elapsed >= HOLD_TIME) {
+            holdTimeout = null;
+            setProgress(1);
+            // Call API to increment keys
+            fetch("/api/increment-keys", { method: "POST", headers: { "Content-Type": "application/json" }})
+              .then(res => res.json())
+              .then(d => { /* Optionally show success, etc. */ });
+          } else if (holdTimeout !== null) {
+            progressFrame = requestAnimationFrame(update);
+          }
         }
+        holdTimeout = setTimeout(() => {}, HOLD_TIME); // For pointerup logic
+        progressFrame = requestAnimationFrame(update);
       }
-      holdTimeout = setTimeout(() => {}, HOLD_TIME); // For pointerup logic
-      progressFrame = requestAnimationFrame(update);
-    }
-    function cancelHold() {
-      if (holdTimeout) {
-        clearTimeout(holdTimeout);
-        holdTimeout = null;
+      function cancelHold() {
+        if (holdTimeout) {
+          clearTimeout(holdTimeout);
+          holdTimeout = null;
+        }
+        if (progressFrame) cancelAnimationFrame(progressFrame);
+        resetProgress();
       }
-      if (progressFrame) cancelAnimationFrame(progressFrame);
-      resetProgress();
+      holdBtn.addEventListener("mousedown", startHold);
+      holdBtn.addEventListener("touchstart", startHold);
+      ["mouseup", "mouseleave", "touchend", "touchcancel"].forEach(ev =>
+        holdBtn.addEventListener(ev, cancelHold)
+      );
     }
-    holdBtn.addEventListener("mousedown", startHold);
-    holdBtn.addEventListener("touchstart", startHold);
-    ["mouseup", "mouseleave", "touchend", "touchcancel"].forEach(ev =>
-      holdBtn.addEventListener(ev, cancelHold)
-    );
 
     // --- Live Counter Sync ---
     const keyCountEl = document.getElementById("keyCount");
@@ -373,6 +500,68 @@
           keyCountEl.textContent = data.keysGenerated;
       } catch (e) {}
     };
+
+    // --- Simple login/signup in LocalStorage (demo only, not for prod) ---
+    const modalAuth = document.getElementById("modalAuth");
+    const mainContent = document.getElementById("mainContent");
+    const authForm = document.getElementById("authForm");
+    const authTitle = document.getElementById("authTitle");
+    const authBtn = document.getElementById("authBtn");
+    const authError = document.getElementById("authError");
+    const toggleAuth = document.getElementById("toggleAuth");
+    let isSignup = false;
+    let users = {};
+    // Load users from localStorage (demo only)
+    if (localStorage.users) {
+      try { users = JSON.parse(localStorage.users); } catch(e){}
+    }
+    function showMain() {
+      modalAuth.style.display = "none";
+      mainContent.style.display = "";
+      setupMainContent();
+    }
+    function updateForm() {
+      authTitle.textContent = isSignup ? "Sign Up" : "Sign In";
+      authBtn.textContent = isSignup ? "Sign Up" : "Sign In";
+      toggleAuth.innerHTML = isSignup ?
+        "Already have an account? <b>Sign In</b>" :
+        "No account? <b>Sign Up</b>";
+      authError.textContent = "";
+    }
+    updateForm();
+    toggleAuth.onclick = () => {
+      isSignup = !isSignup;
+      updateForm();
+    };
+    authForm.onsubmit = (e) => {
+      e.preventDefault();
+      const user = authForm.username.value.trim();
+      const pass = authForm.password.value;
+      if (!user || !pass) {
+        authError.textContent = "Please fill all fields.";
+        return;
+      }
+      if (isSignup) {
+        if (users[user]) {
+          authError.textContent = "Username already exists.";
+        } else {
+          users[user] = { pass };
+          localStorage.users = JSON.stringify(users);
+          authError.textContent = "";
+          showMain();
+        }
+      } else {
+        if (!users[user] || users[user].pass !== pass) {
+          authError.textContent = "Invalid username or password.";
+        } else {
+          authError.textContent = "";
+          showMain();
+        }
+      }
+    };
+    // Optional: If already "logged in" (from localStorage), show main
+    // Comment this out to require login every time
+    // showMain();
   </script>
 </body>
 </html>
