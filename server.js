@@ -1,7 +1,7 @@
 const express = require('express');
-const mysql = require('mysql2/promise'); // use promise-based client
+const mysql = require('mysql2/promise'); // promise-based mysql
 const cors = require('cors');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs'); // use bcryptjs instead of bcrypt
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,12 +17,12 @@ const pool = mysql.createPool({
 });
 
 app.use(cors({
-  origin: ['https://w1ckllon.com'],
+  origin: ['https://w1ckllon.com'], // replace with your frontend domain
   credentials: false
 }));
 app.use(express.json());
 
-// --- Create online_users table if not exists ---
+// Create online_users table if not exists
 (async () => {
   try {
     const conn = await pool.getConnection();
