@@ -131,19 +131,26 @@
       opacity: 0.79;
     }
     .logout-link {
-      color: #eaa;
-      background: none;
+      color: #eaf6ff;
+      background: linear-gradient(90deg, #7b61ff 20%, #48b7ff 100%);
       border: none;
       cursor: pointer;
       margin-left: 16px;
       font-size: 0.93em;
-      text-decoration: underline;
-      opacity: 0.73;
-      transition: opacity 0.12s;
+      border-radius: 8px;
+      padding: 6px 18px;
+      opacity: 0.88;
+      font-weight: 700;
+      transition: opacity 0.12s, background 0.15s, color 0.15s;
+      box-shadow: 0 2px 8px #7b61ff15;
+      outline: none;
+      text-decoration: none !important;
+      border: 1px solid #a3c6ff22;
     }
     .logout-link:hover {
       opacity: 1;
       color: #fff;
+      background: linear-gradient(90deg, #6141ff 15%, #19a2ff 95%);
     }
     /* --- SCRIPTS MODAL --- */
     .scripts-modal {
@@ -381,7 +388,7 @@
   </div>
 
   <!-- SCRIPTS MODAL -->
-  <div class="scripts-modal" id="scriptsModal">
+  <div class="scripts-modal" id="scriptsModal" style="display:none">
     <div class="scripts-modal-header">Scripts</div>
     <div class="scripts-search">
       <input type="text" placeholder="Search scripts..." id="searchInput" disabled />
@@ -500,7 +507,7 @@
       } catch (e) {}
     };
 
-    // --- Login/signup (demo only, persistent) ---
+    // --- Login/signup with sequential UID system ---
     const modalAuth = document.getElementById("modalAuth");
     const authForm = document.getElementById("authForm");
     const authTitle = document.getElementById("authTitle");
@@ -517,23 +524,21 @@
     const profileUID = document.getElementById("profileUID");
     let isSignup = false;
     let users = {};
+    let userOrder = [];
     let currentUser = null;
     let currentUID = null;
-
-    function generateUID(name) {
-      // Simple hash for UID (for demo use only)
-      let s = name + Date.now();
-      let hash = 0;
-      for (let i = 0; i < s.length; i++) {
-        hash = ((hash << 5) - hash) + s.charCodeAt(i);
-        hash |= 0;
-      }
-      return "U" + Math.abs(hash).toString().padStart(8, '0');
-    }
 
     if (localStorage.users) {
       try { users = JSON.parse(localStorage.users); } catch(e){}
     }
+    if (localStorage.userOrder) {
+      try { userOrder = JSON.parse(localStorage.userOrder); } catch(e){}
+    }
+
+    function getNextUID() {
+      return userOrder.length + 1;
+    }
+
     function showNav(user, uid) {
       modalAuth.style.display = "none";
       topNav.style.display = "";
@@ -570,9 +575,11 @@
         if (users[user]) {
           authError.textContent = "Username already exists.";
         } else {
-          const uid = generateUID(user);
+          const uid = getNextUID();
           users[user] = { pass, uid };
+          userOrder.push(user);
           localStorage.users = JSON.stringify(users);
+          localStorage.userOrder = JSON.stringify(userOrder);
           authError.textContent = "";
           localStorage.loggedIn = "1";
           localStorage.loggedUser = user;
@@ -583,10 +590,13 @@
         if (!users[user] || users[user].pass !== pass) {
           authError.textContent = "Invalid username or password.";
         } else {
+          const uid = users[user].uid || (userOrder.indexOf(user) + 1) || getNextUID();
+          users[user].uid = uid;
+          localStorage.users = JSON.stringify(users);
           localStorage.loggedIn = "1";
           localStorage.loggedUser = user;
-          localStorage.loggedUID = users[user].uid || generateUID(user);
-          showNav(user, localStorage.loggedUID);
+          localStorage.loggedUID = uid;
+          showNav(user, uid);
         }
       }
     };
@@ -605,6 +615,8 @@
     window.onload = function() {
       if (localStorage.loggedIn === "1" && localStorage.loggedUser && localStorage.loggedUID) {
         showNav(localStorage.loggedUser, localStorage.loggedUID);
+      } else {
+        scriptsModal.style.display = "none";
       }
     };
 
