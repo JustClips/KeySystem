@@ -9,14 +9,14 @@ const PORT = process.env.PORT || 3000;
 // Log environment variables to verify they are loaded
 console.log('DB_HOST:', process.env.DB_HOST);
 console.log('DB_USER:', process.env.DB_USER);
-console.log('DB_PASSWORD:', process.env.DB_PASSWORD ? '******' : 'NO PASSWORD');
+console.log('DB_PASS:', process.env.DB_PASS ? '******' : 'NO PASSWORD');
 console.log('DB_NAME:', process.env.DB_NAME);
 
 // Create MySQL connection pool using env variables
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
+  password: process.env.DB_PASS,
   database: process.env.DB_NAME,
 });
 
