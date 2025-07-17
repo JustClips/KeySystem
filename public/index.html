@@ -27,7 +27,7 @@
     }
     .center-content {
       position: absolute;
-      top: 29vh; /* Lowered */
+      top: 29vh;
       left: 50%;
       transform: translate(-50%, 0);
       display: flex;
@@ -132,6 +132,47 @@
       text-align: center;
       font-style: italic;
     }
+    /* --- COUNTER --- */
+    .counter-box {
+      position: fixed;
+      top: 26px;
+      left: 26px;
+      background: rgba(20, 26, 44, 0.6);
+      box-shadow: 0 4px 22px #323a5a22;
+      border-radius: 17px;
+      padding: 13px 32px 13px 22px;
+      font-size: 1.09em;
+      color: #eaf6ff;
+      font-weight: 600;
+      letter-spacing: 1px;
+      z-index: 10;
+      backdrop-filter: blur(9px) saturate(140%);
+      border: 1px solid rgba(115,145,205,0.12);
+      min-width: 190px;
+      user-select: none;
+      transition: background 0.19s;
+    }
+    .counter-title {
+      font-size: 0.98em;
+      font-weight: 700;
+      color: #7ecfff;
+      letter-spacing: 1.1px;
+      margin-bottom: 3px;
+      display: block;
+    }
+    .counter-val {
+      font-size: 1.1em;
+      font-weight: 700;
+      color: #ffffff;
+      margin-right: 16px;
+      margin-left: 6px;
+    }
+    .counter-icon {
+      font-size: 1.13em;
+      margin-right: 5px;
+      vertical-align: middle;
+      opacity: 0.92;
+    }
     @media (max-width: 600px) {
       .main-title {
         font-size: 1.3em;
@@ -148,11 +189,22 @@
       .center-content {
         top: 19vh;
       }
+      .counter-box {
+        font-size: 0.92em;
+        padding: 8px 13px 8px 11px;
+        top: 9px;
+        left: 8px;
+      }
     }
   </style>
 </head>
 <body>
   <canvas id="bg-canvas"></canvas>
+  <div class="counter-box">
+    <span class="counter-title">🟢 Online: <span id="onlineCount" class="counter-val">1</span></span>
+    <br>
+    <span class="counter-title">🔑 Keys Generated: <span id="keyCount" class="counter-val">0</span></span>
+  </div>
   <div class="center-content">
     <div class="glass-box">
       <div class="main-title">Eps1llon Hub</div>
@@ -166,14 +218,13 @@
     </div>
   </div>
   <script>
-    // Particles + connections
+    // --- Particles ---
     const canvas = document.getElementById("bg-canvas");
     const ctx = canvas.getContext("2d");
     let w = window.innerWidth;
     let h = window.innerHeight;
     canvas.width = w;
     canvas.height = h;
-
     let dots = [];
     const DOTS = Math.floor((w * h) / 6000) + 40;
     const maxDist = 170;
@@ -193,7 +244,6 @@
       for(let i=0;i<DOTS;i++) dots.push(randomDot());
     }
     resetDots();
-
     function animate() {
       ctx.clearRect(0,0,w,h);
       for(let i=0;i<dots.length;i++) {
@@ -237,7 +287,7 @@
       resetDots();
     });
 
-    // Hold-to-generate logic
+    // --- Hold-to-generate logic + Counters ---
     const holdBtn = document.getElementById("holdGenBtn");
     const progressBar = holdBtn.querySelector(".progress");
     let holdTimeout, holdStart;
@@ -247,11 +297,9 @@
     function resetProgress() {
       progressBar.style.width = "0";
     }
-
     function setProgress(percent) {
       progressBar.style.width = percent * 100 + "%";
     }
-
     function startHold(e) {
       if (holdTimeout) return;
       holdStart = Date.now();
@@ -262,8 +310,10 @@
         if (elapsed >= HOLD_TIME) {
           holdTimeout = null;
           setProgress(1);
-          // Here you would call your key generation logic (currently just alerts)
-          setTimeout(() => alert('Key generated! (connect to backend here)'), 180);
+          // Call API to increment keys
+          fetch("/api/increment-keys", { method: "POST", headers: { "Content-Type": "application/json" }})
+            .then(res => res.json())
+            .then(d => { /* Optionally show success, etc. */ });
         } else if (holdTimeout !== null) {
           progressFrame = requestAnimationFrame(update);
         }
@@ -271,7 +321,6 @@
       holdTimeout = setTimeout(() => {}, HOLD_TIME); // For pointerup logic
       progressFrame = requestAnimationFrame(update);
     }
-
     function cancelHold() {
       if (holdTimeout) {
         clearTimeout(holdTimeout);
@@ -280,13 +329,37 @@
       if (progressFrame) cancelAnimationFrame(progressFrame);
       resetProgress();
     }
-
-    // Mouse and touch support
     holdBtn.addEventListener("mousedown", startHold);
     holdBtn.addEventListener("touchstart", startHold);
     ["mouseup", "mouseleave", "touchend", "touchcancel"].forEach(ev =>
       holdBtn.addEventListener(ev, cancelHold)
     );
+
+    // --- Live Counter Sync ---
+    const keyCountEl = document.getElementById("keyCount");
+    const onlineCountEl = document.getElementById("onlineCount");
+    // Initial fetch
+    fetch("/api/counters")
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          if (keyCountEl) keyCountEl.textContent = data.keysGenerated;
+          if (onlineCountEl) onlineCountEl.textContent = data.onlineUsers;
+        }
+      });
+    // WebSocket live update
+    let wsProto = window.location.protocol === "https:" ? "wss" : "ws";
+    let wsUrl = wsProto + "://" + window.location.host;
+    let ws = new WebSocket(wsUrl);
+    ws.onmessage = (event) => {
+      try {
+        let data = JSON.parse(event.data);
+        if (typeof data.onlineUsers === "number")
+          onlineCountEl.textContent = data.onlineUsers;
+        if (typeof data.keysGenerated === "number")
+          keyCountEl.textContent = data.keysGenerated;
+      } catch (e) {}
+    };
   </script>
 </body>
 </html>
