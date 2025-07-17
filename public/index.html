@@ -10,12 +10,14 @@
       height: 100%;
       margin: 0;
       padding: 0;
-      overflow: hidden;
+      /* overflow: hidden;  Don't block scroll on mobile */
     }
     body {
       background: #111322;
       font-family: 'Montserrat', sans-serif;
-      height: 100vh; width: 100vw;
+      min-height: 100vh;
+      width: 100vw;
+      overflow-x: hidden;
     }
     #bg-canvas {
       position: fixed;
@@ -40,11 +42,14 @@
       padding: 0 34px;
       user-select: none;
       gap: 0;
+      flex-wrap: wrap; /* Responsive fix */
+      transition: height 0.2s;
     }
     .nav-counters {
       display: flex;
       gap: 14px;
       align-items: center;
+      flex-wrap: wrap;
     }
     .counter-tab {
       background: rgba(20, 26, 44, 0.62);
@@ -345,17 +350,35 @@
       background: none;
       opacity: 1;
     }
+
+    /* --- MOBILE RESPONSIVE FIXES --- */
     @media (max-width: 900px) {
-      .top-nav { height: 56px; padding: 0 10vw;}
-      .profile-box { padding: 8px 7vw 8px 4vw;}
-      .counter-tab { padding: 7px 8vw 7px 4vw;}
+      .top-nav { height: 56px; padding: 0 5vw; }
+      .profile-box { padding: 7px 2vw; min-width: 85px;}
+      .counter-tab { padding: 6px 2vw; min-width: 70px; font-size: 0.96em;}
+      .nav-btn { font-size: 0.96em; padding: 7px 4vw;}
     }
     @media (max-width: 600px) {
-      .top-nav { height: 45px; padding: 0 2vw;}
-      .profile-box { padding: 6px 2vw 6px 2vw; font-size: 0.91em; }
-      .counter-tab { padding: 5px 2vw 5px 1vw; font-size: 0.89em;}
-      .nav-btn { font-size: 0.97em; padding: 8px 6vw;}
-      .scripts-modal { padding: 19px 2vw 17px 2vw; }
+      .top-nav {
+        height: auto;
+        flex-direction: column;
+        align-items: stretch;
+        padding: 0 2vw;
+        gap: 8px;
+      }
+      .nav-counters, .nav-center, .profile-box {
+        justify-content: center;
+        width: 100%;
+        margin-bottom: 4px;
+      }
+      .nav-counters { order: 1; flex-wrap: wrap; gap: 6px;}
+      .nav-center { order: 2; }
+      .profile-box { order: 3; font-size: 0.93em; min-width: unset;}
+      .counter-tab { padding: 5px 2vw; min-width: 50px; font-size: 0.91em;}
+      .nav-btn { font-size: 0.91em; padding: 6px 2vw; width: 100%;}
+      .scripts-modal { padding: 18px 2vw 16px 2vw; max-width: 98vw;}
+      .modal-auth { min-width: unset; width: 97vw; padding: 22px 2vw;}
+      .auth-input { width: 90vw; max-width: 280px;}
     }
   </style>
 </head>
