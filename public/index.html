@@ -25,7 +25,6 @@
       z-index: 0;
       background: #111322;
     }
-    /* --- TOP NAV --- */
     .top-nav {
       position: fixed;
       top: 0; left: 0; right: 0;
@@ -152,7 +151,6 @@
       color: #fff;
       background: linear-gradient(90deg, #6141ff 15%, #19a2ff 95%);
     }
-    /* --- SCRIPTS MODAL --- */
     .scripts-modal {
       display: none;
       position: fixed;
@@ -235,7 +233,6 @@
       font-style: italic;
       letter-spacing: 0.6px;
     }
-    /* --- MODAL AUTH BOX --- */
     .modal-outer {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -364,8 +361,6 @@
 </head>
 <body>
   <canvas id="bg-canvas"></canvas>
-  
-  <!-- NAV BAR: counters left, Scripts middle, profile right -->
   <div class="top-nav" id="topNav" style="display:none">
     <div class="nav-counters">
       <div class="counter-tab">
@@ -386,8 +381,6 @@
       <button class="logout-link" id="logoutBtn">Logout</button>
     </div>
   </div>
-
-  <!-- SCRIPTS MODAL -->
   <div class="scripts-modal" id="scriptsModal" style="display:none">
     <div class="scripts-modal-header">Scripts</div>
     <div class="scripts-search">
@@ -398,8 +391,6 @@
       No scripts yet.<br>Upload coming soon!
     </div>
   </div>
-
-  <!-- LOGIN MODAL -->
   <div class="modal-outer" id="modalAuth">
     <div class="modal-auth">
       <div class="auth-title" id="authTitle">Sign In</div>
@@ -412,7 +403,6 @@
       <div class="auth-toggle" id="toggleAuth">No account? <b>Sign Up</b></div>
     </div>
   </div>
-
   <script>
     // --- Particles ---
     const canvas = document.getElementById("bg-canvas");
@@ -483,7 +473,7 @@
       resetDots();
     });
 
-    // --- Live Counter Sync ---
+    // --- Counters (demo only, you may replace with real API/ws) ---
     const keyCountEl = document.getElementById("keyCount");
     const onlineCountEl = document.getElementById("onlineCount");
     fetch("/api/counters")
@@ -493,21 +483,10 @@
           if (keyCountEl) keyCountEl.textContent = data.keysGenerated;
           if (onlineCountEl) onlineCountEl.textContent = data.onlineUsers;
         }
-      });
-    let wsProto = window.location.protocol === "https:" ? "wss" : "ws";
-    let wsUrl = wsProto + "://" + window.location.host;
-    let ws = new WebSocket(wsUrl);
-    ws.onmessage = (event) => {
-      try {
-        let data = JSON.parse(event.data);
-        if (typeof data.onlineUsers === "number")
-          onlineCountEl.textContent = data.onlineUsers;
-        if (typeof data.keysGenerated === "number")
-          keyCountEl.textContent = data.keysGenerated;
-      } catch (e) {}
-    };
+      }).catch(()=>{});
+    // -- If you use WebSockets for live counters, add code here --
 
-    // --- Login/signup with sequential UID system ---
+    // --- Auth: Node.js backend with global UIDs ---
     const modalAuth = document.getElementById("modalAuth");
     const authForm = document.getElementById("authForm");
     const authTitle = document.getElementById("authTitle");
@@ -519,25 +498,11 @@
     const scriptsModal = document.getElementById("scriptsModal");
     const closeScriptsBtn = document.getElementById("closeScriptsBtn");
     const logoutBtn = document.getElementById("logoutBtn");
-    const profileBox = document.getElementById("profileBox");
     const profileUser = document.getElementById("profileUser");
     const profileUID = document.getElementById("profileUID");
     let isSignup = false;
-    let users = {};
-    let userOrder = [];
     let currentUser = null;
     let currentUID = null;
-
-    if (localStorage.users) {
-      try { users = JSON.parse(localStorage.users); } catch(e){}
-    }
-    if (localStorage.userOrder) {
-      try { userOrder = JSON.parse(localStorage.userOrder); } catch(e){}
-    }
-
-    function getNextUID() {
-      return userOrder.length + 1;
-    }
 
     function showNav(user, uid) {
       modalAuth.style.display = "none";
@@ -553,16 +518,18 @@
     function updateForm() {
       authTitle.textContent = isSignup ? "Sign Up" : "Sign In";
       authBtn.textContent = isSignup ? "Sign Up" : "Sign In";
-      toggleAuth.innerHTML = isSignup ?
-        "Already have an account? <b>Sign In</b>" :
-        "No account? <b>Sign Up</b>";
+      toggleAuth.innerHTML = isSignup
+        ? "Already have an account? <b>Sign In</b>"
+        : "No account? <b>Sign Up</b>";
       authError.textContent = "";
     }
     updateForm();
+
     toggleAuth.onclick = () => {
       isSignup = !isSignup;
       updateForm();
     };
+
     authForm.onsubmit = (e) => {
       e.preventDefault();
       const user = authForm.username.value.trim();
@@ -572,32 +539,37 @@
         return;
       }
       if (isSignup) {
-        if (users[user]) {
-          authError.textContent = "Username already exists.";
-        } else {
-          const uid = getNextUID();
-          users[user] = { pass, uid };
-          userOrder.push(user);
-          localStorage.users = JSON.stringify(users);
-          localStorage.userOrder = JSON.stringify(userOrder);
-          authError.textContent = "";
-          localStorage.loggedIn = "1";
-          localStorage.loggedUser = user;
-          localStorage.loggedUID = uid;
-          showNav(user, uid);
-        }
+        fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: user, password: pass })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.uid) {
+            showNav(data.username, data.uid);
+          } else {
+            authError.textContent = data.error || "Registration failed.";
+          }
+        }).catch(() => {
+          authError.textContent = "Server error.";
+        });
       } else {
-        if (!users[user] || users[user].pass !== pass) {
-          authError.textContent = "Invalid username or password.";
-        } else {
-          const uid = users[user].uid || (userOrder.indexOf(user) + 1) || getNextUID();
-          users[user].uid = uid;
-          localStorage.users = JSON.stringify(users);
-          localStorage.loggedIn = "1";
-          localStorage.loggedUser = user;
-          localStorage.loggedUID = uid;
-          showNav(user, uid);
-        }
+        fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: user, password: pass })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.uid) {
+            showNav(data.username, data.uid);
+          } else {
+            authError.textContent = data.error || "Login failed.";
+          }
+        }).catch(() => {
+          authError.textContent = "Server error.";
+        });
       }
     };
     logoutBtn.onclick = () => {
@@ -611,6 +583,7 @@
       localStorage.loggedUID = "";
       scriptsModal.style.display = "none";
     };
+
     // --- Persistent login after refresh ---
     window.onload = function() {
       if (localStorage.loggedIn === "1" && localStorage.loggedUser && localStorage.loggedUID) {
@@ -629,7 +602,6 @@
       scriptsModal.style.display = "none";
       scriptsBtn.classList.remove("active");
     };
-    // Close scripts modal if clicked outside
     window.addEventListener("mousedown", function(e) {
       if (scriptsModal.style.display === "flex" && !scriptsModal.contains(e.target) && e.target !== scriptsBtn) {
         scriptsModal.style.display = "none";
