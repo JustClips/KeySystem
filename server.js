@@ -18,7 +18,7 @@ const connection = mysql.createConnection({
 connection.connect((err) => {
   if (err) {
     console.error('MySQL connection error:', err);
-    process.exit(1); // Crash on DB failure
+    process.exit(1);
   } else {
     console.log('Connected to DreamHost MySQL!');
   }
@@ -103,6 +103,35 @@ app.get('/api/counters', (req, res) => {
     );
   });
 });
+
+// Dashboard user info endpoint
+app.get('/api/userinfo', (req, res) => {
+  const uid = req.query.uid;
+  if (!uid) return res.status(400).json({ error: 'Missing uid' });
+
+  connection.query(
+    'SELECT id, username, regdate FROM users WHERE id=?',
+    [uid],
+    (err, results) => {
+      if (err || results.length === 0) return res.status(404).json({ error: 'User not found' });
+      res.json({
+        id: results[0].id,
+        username: results[0].username,
+        regdate: results[0].regdate
+      });
+    }
+  );
+});
+
+// --- Optional: Create online_users table if not exists on startup ---
+connection.query(`
+  CREATE TABLE IF NOT EXISTS online_users (
+    user_id INT PRIMARY KEY,
+    last_active TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  )
+`);
+
+// --- Optional: Ensure users table has regdate column (otherwise run ALTER TABLE manually as above) ---
 
 app.listen(PORT, () => {
   console.log('Server running on port ' + PORT);
