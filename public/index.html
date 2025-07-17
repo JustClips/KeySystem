@@ -179,139 +179,162 @@
       cursor: pointer;
       text-align: center;
       user-select: none;
-      transition: color 0.13s;
+      transition: color 0.18s, text-decoration-color 0.18s;
       padding: 2px 3px;
+      text-decoration: underline;
+      text-decoration-color: #7b61ff44;
+      text-underline-offset: 3px;
     }
     .auth-toggle:hover {
-      color: #fff8aa;
-      text-decoration: underline;
+      color: #7b61ff;
+      text-decoration-color: #7b61ffbb;
+      background: none;
       opacity: 1;
     }
-    /* --- MAIN UI --- */
-    .center-content {
+    /* --- FORUM DASHBOARD --- */
+    .forum-wrap {
       position: absolute;
-      top: 29vh;
-      left: 50%;
-      transform: translate(-50%, 0);
+      left: 0; top: 0;
+      width: 100vw; height: 100vh;
+      z-index: 3;
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      z-index: 1;
-      width: 100vw;
+      flex-direction: row;
       pointer-events: none;
+      /* glass blur for effect */
     }
-    .glass-box {
-      background: rgba(20, 23, 40, 0.55);
-      box-shadow: 0 4px 48px #22317b55;
-      border-radius: 26px;
-      padding: 46px 50px 40px 50px;
-      min-width: 320px;
-      max-width: 90vw;
+    .forum-sidebar {
+      width: 230px;
+      min-width: 100px;
+      max-width: 50vw;
+      height: 100vh;
+      background: rgba(23, 26, 45, 0.77);
+      backdrop-filter: blur(14px) saturate(135%);
+      border-right: 1.5px solid #7b61ff22;
+      box-shadow: 4px 0 22px #19308a12;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      backdrop-filter: blur(11px) saturate(120%);
-      border: 1.5px solid rgba(125,170,255,0.09);
+      align-items: flex-start;
+      padding: 48px 16px 28px 28px;
       pointer-events: auto;
-      transition: background 0.25s;
     }
-    .main-title {
-      font-size: 2.7em;
+    .forum-logo {
+      font-size: 1.43em;
       font-weight: 700;
-      color: #fff;
-      letter-spacing: 3px;
-      text-shadow: 0 0 32px #76a8ff99, 0 2px 10px #20254e;
-      animation: floatTitle 3.5s ease-in-out infinite;
-      white-space: nowrap;
-      user-select: none;
-      margin-bottom: 44px;
-      pointer-events: auto;
-      background: linear-gradient(90deg, #88caff 0%, #bf9cff 100%);
+      margin-bottom: 30px;
+      color: #a7cbff;
+      background: linear-gradient(90deg, #8de7ff 0%, #a7baff 90%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+      letter-spacing: 2px;
+      user-select: none;
     }
-    @keyframes floatTitle {
-      0%, 100% { transform: translateY(0);}
-      50% { transform: translateY(-8px);}
-    }
-    .hold-btn-wrap {
+    .forum-nav {
+      margin-top: 0;
+      margin-bottom: 14px;
+      font-weight: 600;
+      color: #6fbfff;
+      font-size: 1.07em;
+      letter-spacing: 0.7px;
+      background: none;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      padding: 7px 0 7px 0;
+      border-radius: 7px;
       width: 100%;
+      transition: background 0.15s;
+      text-align: left;
+      pointer-events: auto;
+    }
+    .forum-nav.active, .forum-nav:hover {
+      background: linear-gradient(90deg, #6d7aff33 0%, #2ebdff33 100%);
+      color: #b7d7ff;
+    }
+    .forum-main {
+      flex: 1;
+      height: 100vh;
       display: flex;
       flex-direction: column;
+      justify-content: flex-start;
       align-items: center;
-      margin-top: 6px;
-    }
-    .gen-btn {
-      padding: 20px 58px;
-      border-radius: 19px;
-      background: linear-gradient(95deg, #7b61ffcc 15%, #4ab6fcbb 95%);
-      color: #fff;
-      font-size: 1.32em;
-      font-family: 'Montserrat', sans-serif;
-      font-weight: 700;
-      border: none;
-      box-shadow: 0 4px 40px #76a8ff33, 0 1.5px 0px #aabfff22;
-      cursor: pointer;
-      margin-top: 12px;
-      letter-spacing: 1px;
-      outline: none;
-      position: relative;
-      overflow: hidden;
+      background: transparent;
       pointer-events: auto;
-      transition: background 0.19s, box-shadow 0.18s, transform 0.12s;
-      backdrop-filter: blur(6px) saturate(130%);
-      opacity: 0.96;
-      border: 1.2px solid #8bc1fa33;
-    }
-    .gen-btn:active {
-      transform: scale(0.97);
-      background: linear-gradient(95deg, #6343e0dd 15%, #3998ccbb 95%);
-    }
-    .gen-btn .progress {
-      position: absolute;
-      left: 0; top: 0;
-      height: 100%;
-      background: linear-gradient(90deg, #fff8 0%, #7b61ff99 80%);
-      border-radius: 19px;
-      z-index: 0;
-      pointer-events: none;
-      width: 0;
-      transition: width 0s;
-    }
-    .gen-btn .btn-text {
       position: relative;
       z-index: 1;
     }
-    .hold-text {
-      margin-top: 9px;
-      color: #b5cfff;
-      font-size: 1em;
-      font-weight: 500;
-      letter-spacing: 1px;
-      opacity: 0.77;
+    .forum-content {
+      margin-top: 78px;
+      width: 100%;
+      max-width: 800px;
+      min-height: 400px;
+      background: rgba(25, 30, 60, 0.66);
+      border-radius: 23px;
+      box-shadow: 0 2px 32px #3e51a333;
+      padding: 56px 32px 40px 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(7px) saturate(122%);
+      border: 1.3px solid #a3d3ff1a;
+      pointer-events: auto;
+    }
+    .empty-icon {
+      font-size: 3em;
+      margin-bottom: 18px;
+      color: #86c9ff;
+      opacity: 0.45;
       user-select: none;
       pointer-events: none;
-      text-align: center;
-      font-style: italic;
+    }
+    .empty-title {
+      font-size: 1.29em;
+      font-weight: 700;
+      color: #cbe9ff;
+      margin-bottom: 7px;
+      letter-spacing: 1px;
+    }
+    .empty-desc {
+      font-size: 1em;
+      color: #9dbaff;
+      opacity: 0.7;
+      margin-bottom: 2px;
+    }
+    .logout-btn {
+      position: absolute;
+      bottom: 32px;
+      left: 28px;
+      padding: 10px 25px;
+      border-radius: 8px;
+      background: linear-gradient(90deg, #2e3240 40%, #4ebcff80 100%);
+      color: #fff;
+      font-size: 1em;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 2px 8px #7b61ff15;
+      transition: background 0.13s, box-shadow 0.11s;
+      outline: none;
+      opacity: 0.82;
+      z-index: 10;
+    }
+    .logout-btn:hover {
+      background: linear-gradient(90deg, #2e3758 0%, #1ea2ff 90%);
+      opacity: 1;
+    }
+    @media (max-width: 900px) {
+      .forum-wrap { flex-direction: column; }
+      .forum-sidebar { width: 100vw; height: auto; flex-direction: row; padding: 20px 3vw 14px 6vw;}
+      .forum-main { min-width: 0; }
+      .forum-content { margin-top: 30px; }
     }
     @media (max-width: 600px) {
-      .main-title {
-        font-size: 1.3em;
-        margin-bottom: 22px;
-      }
-      .glass-box {
-        min-width: unset;
-        padding: 19px 10px 16px 10px;
-      }
-      .gen-btn {
-        font-size: 1em;
-        padding: 14px 18vw;
-      }
-      .center-content {
-        top: 19vh;
-      }
-      .modal-auth { min-width: unset; padding: 26px 10vw 20px 10vw; }
+      .forum-content { padding: 26px 4vw 16px 4vw; }
+      .forum-sidebar { padding: 14px 2vw 10px 2vw; font-size: 0.95em;}
+      .forum-logo { font-size: 1.08em; margin-bottom: 16px; }
+      .logout-btn { left: 8px; bottom: 12px; padding: 8px 11vw;}
     }
   </style>
 </head>
@@ -342,15 +365,18 @@
     </div>
   </div>
 
-  <div class="center-content" style="display:none" id="mainContent">
-    <div class="glass-box">
-      <div class="main-title">Eps1llon Hub</div>
-      <div class="hold-btn-wrap">
-        <button class="gen-btn" id="holdGenBtn" type="button">
-          <div class="progress"></div>
-          <span class="btn-text">Generate Key</span>
-        </button>
-        <div class="hold-text">Hold the button to generate your key</div>
+  <!-- Forum Dashboard -->
+  <div class="forum-wrap" style="display:none" id="forumWrap">
+    <div class="forum-sidebar">
+      <div class="forum-logo">Eps1llon Hub</div>
+      <button class="forum-nav active">Scripts</button>
+      <button class="logout-btn" id="logoutBtn">Logout</button>
+    </div>
+    <div class="forum-main">
+      <div class="forum-content">
+        <div class="empty-icon">📂</div>
+        <div class="empty-title">No scripts yet</div>
+        <div class="empty-desc">Upload coming soon!</div>
       </div>
     </div>
   </div>
@@ -425,60 +451,9 @@
       resetDots();
     });
 
-    // --- Hold-to-generate logic + Counters ---
-    function setupMainContent() {
-      const holdBtn = document.getElementById("holdGenBtn");
-      const progressBar = holdBtn.querySelector(".progress");
-      let holdTimeout, holdStart;
-      let progressFrame;
-      const HOLD_TIME = 2000; // ms
-
-      function resetProgress() {
-        progressBar.style.width = "0";
-      }
-      function setProgress(percent) {
-        progressBar.style.width = percent * 100 + "%";
-      }
-      function startHold(e) {
-        if (holdTimeout) return;
-        holdStart = Date.now();
-        setProgress(0);
-        function update() {
-          const elapsed = Date.now() - holdStart;
-          setProgress(Math.min(elapsed / HOLD_TIME, 1));
-          if (elapsed >= HOLD_TIME) {
-            holdTimeout = null;
-            setProgress(1);
-            // Call API to increment keys
-            fetch("/api/increment-keys", { method: "POST", headers: { "Content-Type": "application/json" }})
-              .then(res => res.json())
-              .then(d => { /* Optionally show success, etc. */ });
-          } else if (holdTimeout !== null) {
-            progressFrame = requestAnimationFrame(update);
-          }
-        }
-        holdTimeout = setTimeout(() => {}, HOLD_TIME); // For pointerup logic
-        progressFrame = requestAnimationFrame(update);
-      }
-      function cancelHold() {
-        if (holdTimeout) {
-          clearTimeout(holdTimeout);
-          holdTimeout = null;
-        }
-        if (progressFrame) cancelAnimationFrame(progressFrame);
-        resetProgress();
-      }
-      holdBtn.addEventListener("mousedown", startHold);
-      holdBtn.addEventListener("touchstart", startHold);
-      ["mouseup", "mouseleave", "touchend", "touchcancel"].forEach(ev =>
-        holdBtn.addEventListener(ev, cancelHold)
-      );
-    }
-
     // --- Live Counter Sync ---
     const keyCountEl = document.getElementById("keyCount");
     const onlineCountEl = document.getElementById("onlineCount");
-    // Initial fetch
     fetch("/api/counters")
       .then(res => res.json())
       .then(data => {
@@ -487,7 +462,6 @@
           if (onlineCountEl) onlineCountEl.textContent = data.onlineUsers;
         }
       });
-    // WebSocket live update
     let wsProto = window.location.protocol === "https:" ? "wss" : "ws";
     let wsUrl = wsProto + "://" + window.location.host;
     let ws = new WebSocket(wsUrl);
@@ -501,24 +475,23 @@
       } catch (e) {}
     };
 
-    // --- Simple login/signup in LocalStorage (demo only, not for prod) ---
+    // --- Simple login/signup in LocalStorage (demo only) ---
     const modalAuth = document.getElementById("modalAuth");
-    const mainContent = document.getElementById("mainContent");
+    const forumWrap = document.getElementById("forumWrap");
     const authForm = document.getElementById("authForm");
     const authTitle = document.getElementById("authTitle");
     const authBtn = document.getElementById("authBtn");
     const authError = document.getElementById("authError");
     const toggleAuth = document.getElementById("toggleAuth");
+    const logoutBtn = document.getElementById("logoutBtn");
     let isSignup = false;
     let users = {};
-    // Load users from localStorage (demo only)
     if (localStorage.users) {
       try { users = JSON.parse(localStorage.users); } catch(e){}
     }
-    function showMain() {
+    function showForum() {
       modalAuth.style.display = "none";
-      mainContent.style.display = "";
-      setupMainContent();
+      forumWrap.style.display = "";
     }
     function updateForm() {
       authTitle.textContent = isSignup ? "Sign Up" : "Sign In";
@@ -548,20 +521,26 @@
           users[user] = { pass };
           localStorage.users = JSON.stringify(users);
           authError.textContent = "";
-          showMain();
+          showForum();
         }
       } else {
         if (!users[user] || users[user].pass !== pass) {
           authError.textContent = "Invalid username or password.";
         } else {
           authError.textContent = "";
-          showMain();
+          showForum();
         }
       }
     };
-    // Optional: If already "logged in" (from localStorage), show main
-    // Comment this out to require login every time
-    // showMain();
+    logoutBtn.onclick = () => {
+      forumWrap.style.display = "none";
+      modalAuth.style.display = "";
+      authForm.reset();
+      isSignup = false;
+      updateForm();
+    };
+    // Optional: If you want auto-login if already in localStorage, uncomment next line:
+    // showForum();
   </script>
 </body>
 </html>
