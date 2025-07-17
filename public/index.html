@@ -25,6 +25,61 @@
       z-index: 0;
       background: #111322;
     }
+    /* --- COUNTERS ROW --- */
+    .counters-row {
+      position: fixed;
+      top: 26px;
+      left: 26px;
+      display: flex;
+      flex-direction: row;
+      gap: 16px;
+      z-index: 20;
+      user-select: none;
+    }
+    .counter-tab {
+      background: rgba(20, 26, 44, 0.62);
+      box-shadow: 0 4px 22px #323a5a22;
+      border-radius: 20px;
+      padding: 10px 23px 10px 18px;
+      font-size: 1.05em;
+      color: #eaf6ff;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      min-width: 105px;
+      backdrop-filter: blur(9px) saturate(140%);
+      border: 1px solid rgba(115,145,205,0.12);
+      transition: background 0.19s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .counter-label {
+      color: #99cfff;
+      font-size: 0.97em;
+      font-weight: 700;
+      margin-right: 4px;
+    }
+    .counter-value {
+      color: #ffffff;
+      font-size: 1.09em;
+      font-weight: 800;
+      margin-left: 4px;
+    }
+    @media (max-width: 600px) {
+      .counters-row {
+        top: 9px;
+        left: 8px;
+        gap: 6px;
+      }
+      .counter-tab {
+        padding: 7px 10px 7px 8px;
+        font-size: 0.88em;
+        min-width: 74px;
+      }
+      .counter-label { font-size: 0.9em; }
+      .counter-value { font-size: 1em; }
+    }
+    /* --- MAIN UI --- */
     .center-content {
       position: absolute;
       top: 29vh;
@@ -132,47 +187,6 @@
       text-align: center;
       font-style: italic;
     }
-    /* --- COUNTER --- */
-    .counter-box {
-      position: fixed;
-      top: 26px;
-      left: 26px;
-      background: rgba(20, 26, 44, 0.6);
-      box-shadow: 0 4px 22px #323a5a22;
-      border-radius: 17px;
-      padding: 13px 32px 13px 22px;
-      font-size: 1.09em;
-      color: #eaf6ff;
-      font-weight: 600;
-      letter-spacing: 1px;
-      z-index: 10;
-      backdrop-filter: blur(9px) saturate(140%);
-      border: 1px solid rgba(115,145,205,0.12);
-      min-width: 190px;
-      user-select: none;
-      transition: background 0.19s;
-    }
-    .counter-title {
-      font-size: 0.98em;
-      font-weight: 700;
-      color: #7ecfff;
-      letter-spacing: 1.1px;
-      margin-bottom: 3px;
-      display: block;
-    }
-    .counter-val {
-      font-size: 1.1em;
-      font-weight: 700;
-      color: #ffffff;
-      margin-right: 16px;
-      margin-left: 6px;
-    }
-    .counter-icon {
-      font-size: 1.13em;
-      margin-right: 5px;
-      vertical-align: middle;
-      opacity: 0.92;
-    }
     @media (max-width: 600px) {
       .main-title {
         font-size: 1.3em;
@@ -189,21 +203,20 @@
       .center-content {
         top: 19vh;
       }
-      .counter-box {
-        font-size: 0.92em;
-        padding: 8px 13px 8px 11px;
-        top: 9px;
-        left: 8px;
-      }
     }
   </style>
 </head>
 <body>
   <canvas id="bg-canvas"></canvas>
-  <div class="counter-box">
-    <span class="counter-title">🟢 Online: <span id="onlineCount" class="counter-val">1</span></span>
-    <br>
-    <span class="counter-title">🔑 Keys Generated: <span id="keyCount" class="counter-val">0</span></span>
+  <div class="counters-row">
+    <div class="counter-tab" id="onlineTab">
+      <span class="counter-label">Online Users</span>
+      <span class="counter-value" id="onlineCount">1</span>
+    </div>
+    <div class="counter-tab" id="keysTab">
+      <span class="counter-label">Keys Generated</span>
+      <span class="counter-value" id="keyCount">0</span>
+    </div>
   </div>
   <div class="center-content">
     <div class="glass-box">
