@@ -25,10 +25,12 @@
       z-index: 0;
       background: #111322;
     }
-    .counters-row {
+    /* --- COUNTERS ROW --- */
+    .counters-row.right {
       position: fixed;
       top: 26px;
-      left: 26px;
+      right: 26px;
+      left: unset;
       display: flex;
       flex-direction: row;
       gap: 16px;
@@ -65,9 +67,9 @@
       margin-left: 4px;
     }
     @media (max-width: 600px) {
-      .counters-row {
+      .counters-row.right {
         top: 9px;
-        left: 8px;
+        right: 8px;
         gap: 6px;
       }
       .counter-tab {
@@ -200,7 +202,6 @@
       display: flex;
       flex-direction: row;
       pointer-events: none;
-      /* glass blur for effect */
     }
     .forum-sidebar {
       width: 230px;
@@ -340,7 +341,7 @@
 </head>
 <body>
   <canvas id="bg-canvas"></canvas>
-  <div class="counters-row">
+  <div class="counters-row right">
     <div class="counter-tab" id="onlineTab">
       <span class="counter-label">Online Users</span>
       <span class="counter-value" id="onlineCount">1</span>
