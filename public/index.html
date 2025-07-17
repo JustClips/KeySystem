@@ -6,60 +6,157 @@
   <title>Eps1llon Hub Key System</title>
   <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400&display=swap" rel="stylesheet">
   <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
     body {
-      background: #121212;
-      color: #fff;
+      height: 100vh;
+      width: 100vw;
       font-family: 'Montserrat', sans-serif;
-      display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #0d1021;
+    }
+    #stars, #stars2, #stars3 {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+      background-repeat: repeat;
+      background-position: 0 0;
+    }
+    #stars {
+      background-image: url('https://cdn.jsdelivr.net/gh/jaysalvat/image-set@master/starfield/starfield-1.png');
+      animation: animStar 150s linear infinite;
+      opacity: 0.6;
+    }
+    #stars2 {
+      background-image: url('https://cdn.jsdelivr.net/gh/jaysalvat/image-set@master/starfield/starfield-2.png');
+      animation: animStar 300s linear infinite;
+      opacity: 0.4;
+    }
+    #stars3 {
+      background-image: url('https://cdn.jsdelivr.net/gh/jaysalvat/image-set@master/starfield/starfield-3.png');
+      animation: animStar 600s linear infinite;
+      opacity: 0.2;
+    }
+    @keyframes animStar {
+      from {background-position: 0 0;}
+      to {background-position: -10000px 5000px;}
+    }
+    .content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100vw;
+      min-height: 100vh;
+    }
+    .main-title {
+      font-size: 3.5em;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 3px;
+      text-shadow: 0 0 32px #76a8ff, 0 2px 10px #20254e;
+      margin-bottom: 12px;
+      margin-top: 0;
+      animation: floatTitle 3.5s ease-in-out infinite;
+    }
+    @keyframes floatTitle {
+      0%, 100% { transform: translateY(0);}
+      50% { transform: translateY(-16px);}
     }
     .container {
-      background: #1e1e2f;
-      border-radius: 24px;
-      box-shadow: 0 8px 24px #0008;
-      padding: 32px 48px;
-      max-width: 350px;
+      background: rgba(18, 18, 35, 0.96);
+      border-radius: 28px;
+      box-shadow: 0 8px 32px #000b;
+      padding: 36px 48px 30px 48px;
+      max-width: 380px;
       width: 100%;
       text-align: center;
-      margin: 16px;
+      margin: 24px auto;
+      margin-top: 0;
+      margin-bottom: 0;
+      z-index: 2;
+      animation: fadeIn 1.2s;
     }
-    h1 {
-      font-size: 2em;
-      margin-bottom: 12px;
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(60px);}
+      to { opacity: 1; transform: translateY(0);}
+    }
+    h2 {
+      font-size: 1.6em;
+      margin-bottom: 14px;
+      color: #b8cbff;
+      font-weight: 500;
       letter-spacing: 1px;
+      margin-top: 0;
     }
     button {
       margin-top: 22px;
-      padding: 12px 28px;
-      font-size: 1.2em;
+      padding: 13px 34px;
+      font-size: 1.25em;
       font-weight: bold;
-      background: #7b61ff;
+      background: linear-gradient(90deg, #7b61ff 20%, #5377f6 80%);
       border: none;
-      border-radius: 12px;
+      border-radius: 14px;
       color: #fff;
+      box-shadow: 0 2px 18px #6b59fa55;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: background 0.2s, box-shadow 0.2s;
+      outline: none;
     }
-    button:hover { background: #5436e6; }
+    button:hover {
+      background: linear-gradient(90deg, #6f41e6 20%, #4156b6 80%);
+      box-shadow: 0 4px 26px #6b59fa88;
+    }
     .key-box {
       margin-top: 20px;
-      font-size: 1.1em;
-      background: #222238;
-      border-radius: 10px;
+      font-size: 1.08em;
+      background: #232244ee;
+      border-radius: 12px;
       padding: 16px;
       word-break: break-all;
+      color: #9aefff;
+      box-shadow: 0 2px 12px #285ea777;
+      letter-spacing: 1px;
+      user-select: all;
     }
     .error {
       color: #ff7f7f;
       margin-top: 16px;
+      font-weight: 500;
+    }
+    @media (max-width: 500px) {
+      .container {
+        padding: 20px 8px 18px 8px;
+        max-width: 98vw;
+      }
+      .main-title {
+        font-size: 2.1em;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Eps1llon Hub Key System</h1>
-    <p>To get your key, <b>complete the Linkvertise steps</b> and click the button below.</p>
-    <button id="getKeyBtn">Get Key</button>
-    <div id="result"></div>
+  <!-- Animated star layers -->
+  <div id="stars"></div>
+  <div id="stars2"></div>
+  <div id="stars3"></div>
+  <div class="content">
+    <h1 class="main-title">Eps1llonHub</h1>
+    <div class="container">
+      <h2>Key System</h2>
+      <p>To get your key, <b>complete the Linkvertise steps</b> and click the button below.</p>
+      <button id="getKeyBtn">Get Key</button>
+      <div id="result"></div>
+    </div>
   </div>
   <script>
     document.getElementById("getKeyBtn").onclick = async function() {
