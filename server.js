@@ -7,18 +7,30 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // SQLite DB setup
-const db = new sqlite3.Database('./users.db');
+const db = new sqlite3.Database('./users.db', (err) => {
+  if (err) console.error('DB Error:', err.message);
+});
 
-db.run(`CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  username TEXT UNIQUE NOT NULL,
-  password TEXT NOT NULL
-)`);
+// Create users table
+db.run(`
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL
+  )
+`);
 
-app.use(cors());
+// --- CORS SETUP ---
+app.use(cors({
+  origin: ['https://davs8.dreamhosters.com'], // your frontend domain
+  credentials: false
+}));
+
+// --- Middleware ---
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// --- Register Endpoint ---
 app.post('/api/register', (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
@@ -39,6 +51,7 @@ app.post('/api/register', (req, res) => {
   );
 });
 
+// --- Login Endpoint ---
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   db.get(
@@ -52,6 +65,12 @@ app.post('/api/login', (req, res) => {
   );
 });
 
+// --- Optional: Fake counters for testing ---
+app.get('/api/counters', (req, res) => {
+  res.json({ keysGenerated: 193, onlineUsers: Math.floor(Math.random() * 10) + 1 });
+});
+
+// --- Start Server ---
 app.listen(PORT, () => {
   console.log('Server running on port ' + PORT);
 });
