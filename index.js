@@ -1,66 +1,43 @@
-const express = require("express");
-const fs = require("fs");
-const cors = require("cors");
-const path = require("path");
-const http = require("http");
-const WebSocket = require("ws");
+async function login() {
+  const username = document.getElementById('login-username').value;
+  const password = document.getElementById('login-password').value;
+  const message = document.getElementById('login-message');
+  message.textContent = '';
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+  const res = await fetch('/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
 
-// Serve static files
-app.use(cors());
-app.use(express.static("public"));
-
-// In-memory and file-persisted key count
-let generated = { count: 0 };
-try {
-  if (fs.existsSync("generated.json")) {
-    generated = JSON.parse(fs.readFileSync("generated.json"));
+  const data = await res.json();
+  if (res.ok) {
+    message.style.color = 'lightgreen';
+    message.textContent = `Welcome back, ${data.username}! Your UID is ${data.uid}.`;
+  } else {
+    message.style.color = 'salmon';
+    message.textContent = data.error || 'Login failed';
   }
-} catch {
-  generated = { count: 0 };
-}
-function saveGenerated() {
-  fs.writeFileSync("generated.json", JSON.stringify(generated));
 }
 
-// REST API for increment and initial count
-app.post("/api/increment-keys", express.json(), (req, res) => {
-  generated.count++;
-  saveGenerated();
-  broadcastCounts();
-  res.json({ success: true, count: generated.count });
-});
-app.get("/api/counters", (req, res) => {
-  res.json({
-    keysGenerated: generated.count,
-    onlineUsers: wss ? wss.clients.size : 1,
-  });
-});
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
+async function register() {
+  const username = document.getElementById('register-username').value;
+  const password = document.getElementById('register-password').value;
+  const message = document.getElementById('register-message');
+  message.textContent = '';
 
-// WebSocket server for live user counter
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+  const res = await fetch('/api/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
 
-function broadcastCounts() {
-  const msg = JSON.stringify({
-    keysGenerated: generated.count,
-    onlineUsers: wss.clients.size,
-  });
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) client.send(msg);
-  });
+  const data = await res.json();
+  if (res.ok) {
+    message.style.color = 'lightgreen';
+    message.textContent = 'Registration successful! You can now log in.';
+  } else {
+    message.style.color = 'salmon';
+    message.textContent = data.error || 'Registration failed';
+  }
 }
-wss.on("connection", function (ws) {
-  broadcastCounts();
-  ws.on("close", () => setTimeout(broadcastCounts, 100));
-});
-
-// IMPORTANT: Only use server.listen, NOT app.listen!
-server.listen(PORT, () => {
-  console.log(`Eps1llon Hub API running on port ${PORT}`);
-});
