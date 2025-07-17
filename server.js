@@ -1,12 +1,13 @@
-require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// MySQL connection
 const connection = mysql.createConnection({
-  host: process.env.DB_HOST,
+  host: process.env.DB_HOST,     // Railway will inject these
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
   database: process.env.DB_NAME
@@ -15,7 +16,7 @@ const connection = mysql.createConnection({
 connection.connect((err) => {
   if (err) {
     console.error('MySQL connection error:', err);
-    process.exit(1);
+    process.exit(1); // Stop the app if can't connect
   } else {
     console.log('Connected to DreamHost MySQL!');
   }
@@ -63,11 +64,11 @@ app.post('/api/login', (req, res) => {
   );
 });
 
-// Optional: Counter endpoint
+// Counter endpoint for frontend
 app.get('/api/counters', (req, res) => {
   connection.query('SELECT COUNT(*) AS userCount FROM users', (err, results) => {
     if (err) return res.json({ keysGenerated: 0, onlineUsers: 1 });
-    res.json({ keysGenerated: results[0].userCount, onlineUsers: 1 + Math.floor(Math.random()*4) });
+    res.json({ keysGenerated: results[0].userCount, onlineUsers: 1 + Math.floor(Math.random() * 4) });
   });
 });
 
