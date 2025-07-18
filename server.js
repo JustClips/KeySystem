@@ -1,4 +1,3 @@
-// server.js
 const express  = require('express');
 const cors     = require('cors');
 const mysql    = require('mysql2/promise');
@@ -20,12 +19,12 @@ if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR);
 }
 
-// 3) Multer setup for avatar uploads - add timestamp for cache busting
+// 3) Multer setup for avatar and script thumbnail uploads - add timestamp for cache busting
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename:  (req, file, cb) => {
     const ext = path.extname(file.originalname);
-    const uniqueName = `${req.body.uid}-${Date.now()}${ext}`;
+    const uniqueName = `${Date.now()}-${Math.round(Math.random()*1E9)}${ext}`;
     cb(null, uniqueName);
   }
 });
@@ -42,7 +41,7 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
 });
 
-// 6) Ensure users table exists (with avatar column)
+// 6) Ensure users table exists with avatar and is_admin columns
 (async () => {
   try {
     await pool.query(`
@@ -50,7 +49,8 @@ const pool = mysql.createPool({
         id       INT AUTO_INCREMENT PRIMARY KEY,
         username VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
-        avatar   VARCHAR(255) NULL
+        avatar   VARCHAR(255) NULL,
+        is_admin BOOLEAN DEFAULT FALSE
       )
     `);
     console.log('Users table ready');
@@ -59,24 +59,38 @@ const pool = mysql.createPool({
   }
 })();
 
-// 7) Registration endpoint
+// 7) Ensure scripts table exists
+(async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS scripts (
+        id          INT AUTO_INCREMENT PRIMARY KEY,
+        title       VARCHAR(255) NOT NULL,
+        placeId     VARCHAR(50) NOT NULL,
+        thumbnail   VARCHAR(255) NOT NULL,
+        uploader_id INT NOT NULL,
+        uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (uploader_id) REFERENCES users(id)
+      )
+    `);
+    console.log('Scripts table ready');
+  } catch (e) {
+    console.error('Error creating scripts table:', e);
+  }
+})();
+
+// 8) Registration endpoint (unchanged)
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
     return res.status(400).json({ error: 'Missing fields' });
   try {
-    const [exists] = await pool.query(
-      'SELECT id FROM users WHERE username = ?',
-      [username]
-    );
+    const [exists] = await pool.query('SELECT id FROM users WHERE username = ?', [username]);
     if (exists.length)
       return res.status(409).json({ error: 'Username exists' });
 
     const hash = await bcrypt.hash(password, 10);
-    await pool.query(
-      'INSERT INTO users (username, password) VALUES (?, ?)',
-      [username, hash]
-    );
+    await pool.query('INSERT INTO users (username, password) VALUES (?, ?)', [username, hash]);
     res.json({ success: true });
   } catch (e) {
     console.error('Register error:', e);
@@ -84,16 +98,13 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// 8) Login endpoint with cache-busting on avatar URL
+// 9) Login endpoint with cache-busting avatar URL (unchanged)
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
     return res.status(400).json({ error: 'Missing fields' });
   try {
-    const [rows] = await pool.query(
-      'SELECT id, password, avatar FROM users WHERE username = ?',
-      [username]
-    );
+    const [rows] = await pool.query('SELECT id, password, avatar, is_admin FROM users WHERE username = ?', [username]);
     if (!rows.length)
       return res.status(401).json({ error: 'Invalid credentials' });
 
@@ -106,24 +117,21 @@ app.post('/api/login', async (req, res) => {
       ? `${req.protocol}://${req.get('host')}/uploads/${user.avatar}?v=${Date.now()}`
       : null;
 
-    res.json({ uid: user.id, username, avatarUrl });
+    res.json({ uid: user.id, username, avatarUrl, is_admin: !!user.is_admin });
   } catch (e) {
     console.error('Login error:', e);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// 9) Avatar upload endpoint with cache-busting URL
+// 10) Avatar upload endpoint (unchanged)
 app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
   const { uid } = req.body;
   if (!req.file || !uid) {
     return res.status(400).json({ error: 'Missing file or uid' });
   }
   try {
-    await pool.query(
-      'UPDATE users SET avatar = ? WHERE id = ?',
-      [req.file.filename, uid]
-    );
+    await pool.query('UPDATE users SET avatar = ? WHERE id = ?', [req.file.filename, uid]);
     const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}?v=${Date.now()}`;
     res.json({ avatarUrl: url });
   } catch (e) {
@@ -132,7 +140,35 @@ app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
   }
 });
 
-// 10) Start server
+// 11) New admin-only script upload endpoint
+app.post('/api/upload-script', upload.single('thumbnail'), async (req, res) => {
+  const { uid, title, placeId } = req.body;
+  if (!uid || !title || !placeId || !req.file) {
+    return res.status(400).json({ error: 'Missing fields or file' });
+  }
+
+  try {
+    // Check if user is admin
+    const [users] = await pool.query('SELECT is_admin FROM users WHERE id = ?', [uid]);
+    if (!users.length) return res.status(401).json({ error: 'Invalid user' });
+    if (!users[0].is_admin) return res.status(403).json({ error: 'Forbidden: Admins only' });
+
+    // Insert script into DB
+    const filename = req.file.filename;
+    await pool.query(
+      'INSERT INTO scripts (title, placeId, thumbnail, uploader_id) VALUES (?, ?, ?, ?)',
+      [title, placeId, filename, uid]
+    );
+
+    const thumbnailUrl = `${req.protocol}://${req.get('host')}/uploads/${filename}?v=${Date.now()}`;
+    res.json({ success: true, thumbnailUrl });
+  } catch (e) {
+    console.error('Upload script error:', e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// 12) Start server
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
