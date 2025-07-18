@@ -1,4 +1,3 @@
-// server.js
 const express  = require('express');
 const cors     = require('cors');
 const mysql    = require('mysql2/promise');
@@ -6,20 +5,20 @@ const bcrypt   = require('bcryptjs');
 const path     = require('path');
 const fs       = require('fs');
 const multer   = require('multer');
+const crypto   = require('crypto');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// 1) OPEN CORS for your front‑end
 app.use(cors());
-app.use(express.json()); // to parse JSON bodies
+app.use(express.json());
 
-// 2) Serve uploaded files (avatars only)
+// Serve uploaded files (avatars only)
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
 app.use('/uploads', express.static(UPLOAD_DIR));
 
-// 3) Initialize MySQL pool
+// Initialize MySQL pool
 const pool = mysql.createPool({
   host:     process.env.DB_HOST,
   user:     process.env.DB_USER,
@@ -27,7 +26,7 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
 });
 
-// 4) Ensure users table exists with avatar and is_admin columns
+// Ensure users table exists
 (async () => {
   try {
     await pool.query(`
@@ -45,7 +44,7 @@ const pool = mysql.createPool({
   }
 })();
 
-// 5) Ensure scripts table exists with scriptCode column (TEXT)
+// Ensure scripts table exists
 (async () => {
   try {
     await pool.query(`
@@ -66,7 +65,26 @@ const pool = mysql.createPool({
   }
 })();
 
-// 6) Registration endpoint
+// Ensure keys table exists (for 6-hour key system)
+(async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS \`keys\` (
+        id         INT AUTO_INCREMENT PRIMARY KEY,
+        user_id    INT NOT NULL,
+        key_value  VARCHAR(255) NOT NULL,
+        expires_at DATETIME NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY (user_id)
+      )
+    `);
+    console.log('Keys table ready');
+  } catch (e) {
+    console.error('Error creating keys table:', e);
+  }
+})();
+
+// Registration endpoint
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
@@ -91,7 +109,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// 7) Login endpoint
+// Login endpoint
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
@@ -125,7 +143,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// 8) Avatar upload endpoint
+// Avatar upload endpoint
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename:  (req, file, cb) => {
@@ -154,7 +172,7 @@ app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
   }
 });
 
-// 9) Admin-only script upload endpoint
+// Admin-only script upload endpoint
 app.post('/api/upload-script', async (req, res) => {
   const { uid, title, placeId, thumbnail, scriptCode } = req.body;
   if (!uid || !title || !placeId || !thumbnail || !scriptCode) {
@@ -183,7 +201,7 @@ app.post('/api/upload-script', async (req, res) => {
   }
 });
 
-// 10) Get all scripts endpoint
+// Get all scripts endpoint
 app.get('/api/scripts', async (req, res) => {
   try {
     const [scripts] = await pool.query(`
@@ -198,7 +216,7 @@ app.get('/api/scripts', async (req, res) => {
   }
 });
 
-// 11) Online users counter (example)
+// Online users counter (example)
 app.get('/api/counters', async (req, res) => {
   try {
     res.json({ onlineUsers: 42 });
@@ -207,7 +225,59 @@ app.get('/api/counters', async (req, res) => {
   }
 });
 
-// 12) Start server
+/* ========== KEY SYSTEM (NEW) ========== */
+
+// Generate or return a unique 6-hour key for a user
+app.post('/api/generate-key', async (req, res) => {
+  const { uid } = req.body;
+  if (!uid) return res.status(400).json({ error: 'Missing user ID' });
+
+  const sixHoursFromNow = new Date(Date.now() + 6 * 60 * 60 * 1000);
+
+  try {
+    // Check for existing, unexpired key
+    const [existing] = await pool.query(
+      'SELECT key_value, expires_at FROM `keys` WHERE user_id = ? AND expires_at > NOW()',
+      [uid]
+    );
+    if (existing.length) {
+      return res.json({ key: existing[0].key_value, expires_at: existing[0].expires_at });
+    }
+
+    // Generate a new key
+    const newKey = crypto.randomBytes(24).toString('hex');
+    await pool.query(
+      'INSERT INTO `keys` (user_id, key_value, expires_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE key_value=?, expires_at=?',
+      [uid, newKey, sixHoursFromNow, newKey, sixHoursFromNow]
+    );
+    res.json({ key: newKey, expires_at: sixHoursFromNow });
+  } catch (e) {
+    console.error('Generate key error:', e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Validate key (optional)
+app.post('/api/validate-key', async (req, res) => {
+  const { key } = req.body;
+  if (!key) return res.status(400).json({ error: 'No key provided' });
+
+  try {
+    const [rows] = await pool.query(
+      'SELECT user_id FROM `keys` WHERE key_value = ? AND expires_at > NOW()',
+      [key]
+    );
+    if (!rows.length) return res.json({ valid: false });
+    res.json({ valid: true, user_id: rows[0].user_id });
+  } catch (e) {
+    console.error('Validate key error:', e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+/* ========== END KEY SYSTEM ========== */
+
+// Start server
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
