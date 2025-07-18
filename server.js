@@ -1,3 +1,4 @@
+// server.js
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2/promise');
@@ -9,34 +10,36 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Log environment variables to verify they are loaded
-console.log('DB_HOST:', process.env.DB_HOST);
-console.log('DB_USER:', process.env.DB_USER);
-console.log('DB_PASS:', process.env.DB_PASS ? '******' : 'NO PASSWORD');
-console.log('DB_NAME:', process.env.DB_NAME);
+// 1) CORS: allow both your front‑end and this backend
+app.use(cors({
+  origin: [
+    'https://your-frontend-domain.com',          // replace with your actual front‑end URL
+    'https://keysystem-production-3419.up.railway.app'
+  ]
+}));
 
-// Ensure uploads directory exists
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
+app.use(express.json());
+
+// 2) Ensure uploads directory exists
+const UPLOAD_DIR = path.join(__dirname, 'uploads');
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR);
 }
 
-// Multer setup for avatar uploads
+// 3) Multer setup for avatar uploads
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename:  (req, file, cb) => {
     const ext = path.extname(file.originalname);
     cb(null, `${req.body.uid}${ext}`);
   }
 });
 const upload = multer({ storage });
 
-// Serve uploaded files statically
-app.use('/uploads', express.static(uploadDir));
+// 4) Serve uploaded files statically
+app.use('/uploads', express.static(UPLOAD_DIR));
 
-// Create MySQL connection pool using env variables
+// 5) Create MySQL connection pool
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -44,10 +47,7 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
 });
 
-app.use(cors());
-app.use(express.json());
-
-// Create users table if it doesn't exist (with avatar column)
+// 6) Ensure users table exists (with avatar column)
 ;(async () => {
   try {
     await pool.query(`
@@ -64,28 +64,25 @@ app.use(express.json());
   }
 })();
 
-// Register route
+// 7) Register route
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Missing fields' });
 
   try {
-    const [existing] = await pool.query('SELECT id FROM users WHERE username = ?', [username]);
-    if (existing.length > 0) return res.status(409).json({ error: 'Username exists' });
+    const [exists] = await pool.query('SELECT id FROM users WHERE username = ?', [username]);
+    if (exists.length > 0) return res.status(409).json({ error: 'Username exists' });
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    await pool.query(
-      'INSERT INTO users (username, password) VALUES (?, ?)',
-      [username, hashedPassword]
-    );
-    res.json({ success: true, message: 'User registered' });
+    const hash = await bcrypt.hash(password, 10);
+    await pool.query('INSERT INTO users (username, password) VALUES (?, ?)', [username, hash]);
+    res.json({ success: true });
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Login route
+// 8) Login route
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Missing fields' });
@@ -112,7 +109,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Avatar upload route
+// 9) Avatar upload route
 app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
   const { uid } = req.body;
   if (!req.file || !uid) {
@@ -120,10 +117,10 @@ app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
   }
 
   try {
-    await pool.query(
-      'UPDATE users SET avatar = ? WHERE id = ?',
-      [req.file.filename, uid]
-    );
+    await pool.query('UPDATE users SET avatar = ? WHERE id = ?', [
+      req.file.filename,
+      uid
+    ]);
     const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
     res.json({ avatarUrl: url });
   } catch (err) {
@@ -132,6 +129,7 @@ app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
   }
 });
 
+// 10) Start the server
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server listening on port ${PORT}`);
 });
