@@ -225,7 +225,7 @@ app.get('/api/counters', async (req, res) => {
   }
 });
 
-/* ========== KEY SYSTEM (NEW) ========== */
+/* ========== KEY SYSTEM ========== */
 
 // Generate or return a unique 6-hour key for a user
 app.post('/api/generate-key', async (req, res) => {
@@ -257,10 +257,10 @@ app.post('/api/generate-key', async (req, res) => {
   }
 });
 
-// Validate key (optional)
-app.post('/api/validate-key', async (req, res) => {
+// Key verification for Roblox/other (KEY: returns {valid: true/false})
+app.post('/api/verify-key', async (req, res) => {
   const { key } = req.body;
-  if (!key) return res.status(400).json({ error: 'No key provided' });
+  if (!key) return res.status(400).json({ valid: false, error: 'No key provided' });
 
   try {
     const [rows] = await pool.query(
@@ -270,8 +270,8 @@ app.post('/api/validate-key', async (req, res) => {
     if (!rows.length) return res.json({ valid: false });
     res.json({ valid: true, user_id: rows[0].user_id });
   } catch (e) {
-    console.error('Validate key error:', e);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Verify key error:', e);
+    res.status(500).json({ valid: false, error: 'Server error' });
   }
 });
 
