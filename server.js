@@ -6,11 +6,13 @@ const bcrypt   = require('bcryptjs');
 const multer   = require('multer');
 const path     = require('path');
 const fs       = require('fs');
+const http     = require('http');
+const { Server } = require('socket.io');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// 1) OPEN CORS for all origins
+// 1) OPEN CORS for REST & Static
 app.use(cors());
 app.use(express.json());
 
@@ -30,7 +32,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// 4) Serve uploaded files statically
+// 4) Serve uploaded files
 app.use('/uploads', express.static(UPLOAD_DIR));
 
 // 5) MySQL pool
@@ -42,7 +44,7 @@ const pool = mysql.createPool({
 });
 
 // 6) Ensure users table (adds avatar column)
-(async () => {
+;(async () => {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -58,14 +60,14 @@ const pool = mysql.createPool({
   }
 })();
 
-// 7) Register
+// 7) Register route
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
     return res.status(400).json({ error: 'Missing fields' });
   try {
     const [exists] = await pool.query(
-      'SELECT id FROM users WHERE username=?',
+      'SELECT id FROM users WHERE username = ?',
       [username]
     );
     if (exists.length)
@@ -82,20 +84,21 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// 8) Login
+// 8) Login route
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
     return res.status(400).json({ error: 'Missing fields' });
   try {
     const [rows] = await pool.query(
-      'SELECT id,password,avatar FROM users WHERE username=?',
+      'SELECT id, password, avatar FROM users WHERE username = ?',
       [username]
     );
     if (!rows.length)
       return res.status(401).json({ error: 'Invalid credentials' });
     const user = rows[0];
-    if (!await bcrypt.compare(password, user.password))
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid)
       return res.status(401).json({ error: 'Invalid credentials' });
     const avatarUrl = user.avatar
       ? `${req.protocol}://${req.get('host')}/uploads/${user.avatar}`
@@ -107,17 +110,17 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// 9) Avatar upload
+// 9) Avatar upload route
 app.post(
   '/api/avatar',
   upload.single('avatar'),
   async (req, res) => {
+    const { uid } = req.body;
+    if (!req.file || !uid)
+      return res.status(400).json({ error: 'Missing file or uid' });
     try {
-      const { uid } = req.body;
-      if (!req.file || !uid)
-        return res.status(400).json({ error: 'Missing file or uid' });
       await pool.query(
-        'UPDATE users SET avatar=? WHERE id=?',
+        'UPDATE users SET avatar = ? WHERE id = ?',
         [req.file.filename, uid]
       );
       const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
@@ -129,7 +132,52 @@ app.post(
   }
 );
 
-// 10) Start
-app.listen(PORT, () => {
+// 10) Create HTTP server + Socket.io for chat
+const httpServer = http.createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: [
+      'https://w1ckllon.com',
+      'https://keysystem-production-3419.up.railway.app'
+    ],
+    methods: ['GET','POST']
+  }
+});
+
+io.on('connection', socket => {
+  console.log('Client connected:', socket.id);
+
+  // Handle incoming chat messages
+  socket.on('chatMessage', async ({ uid, text }) => {
+    try {
+      // Lookup user info
+      const [[user]] = await pool.query(
+        'SELECT username, avatar FROM users WHERE id = ?',
+        [uid]
+      );
+      const avatarUrl = user.avatar
+        ? `${socket.handshake.headers.origin}/uploads/${user.avatar}`
+        : null;
+      const msg = {
+        uid,
+        username: user.username,
+        avatarUrl,
+        text,
+        ts: Date.now()
+      };
+      // Broadcast to everyone
+      io.emit('chatMessage', msg);
+    } catch (e) {
+      console.error('chatMessage error:', e);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
+
+// 11) Start server
+httpServer.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
