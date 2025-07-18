@@ -1,9 +1,7 @@
-// server.js
 const express  = require('express');
 const cors     = require('cors');
 const mysql    = require('mysql2/promise');
 const bcrypt   = require('bcryptjs');
-const multer   = require('multer');
 const path     = require('path');
 const fs       = require('fs');
 
@@ -12,29 +10,14 @@ const PORT = process.env.PORT || 3000;
 
 // 1) OPEN CORS for your front‑end
 app.use(cors());
-app.use(express.json());
+app.use(express.json()); // to parse JSON bodies
 
-// 2) Ensure uploads directory exists
+// 2) Serve uploaded files (avatars only)
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR);
-}
-
-// 3) Multer setup for avatar and script thumbnail uploads - add timestamp for cache busting
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename:  (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const uniqueName = `${Date.now()}-${Math.round(Math.random()*1E9)}${ext}`;
-    cb(null, uniqueName);
-  }
-});
-const upload = multer({ storage });
-
-// 4) Serve uploaded files
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
 app.use('/uploads', express.static(UPLOAD_DIR));
 
-// 5) Initialize MySQL pool
+// 3) Initialize MySQL pool
 const pool = mysql.createPool({
   host:     process.env.DB_HOST,
   user:     process.env.DB_USER,
@@ -42,7 +25,7 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
 });
 
-// 6) Ensure users table exists with avatar and is_admin columns
+// 4) Ensure users table exists with avatar and is_admin columns
 (async () => {
   try {
     await pool.query(`
@@ -60,7 +43,7 @@ const pool = mysql.createPool({
   }
 })();
 
-// 7) Ensure scripts table exists
+// 5) Ensure scripts table exists with scriptCode column (TEXT)
 (async () => {
   try {
     await pool.query(`
@@ -69,6 +52,7 @@ const pool = mysql.createPool({
         title       VARCHAR(255) NOT NULL,
         placeId     VARCHAR(50) NOT NULL,
         thumbnail   VARCHAR(255) NOT NULL,
+        scriptCode  TEXT NOT NULL,
         uploader_id INT NOT NULL,
         uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (uploader_id) REFERENCES users(id)
@@ -80,7 +64,7 @@ const pool = mysql.createPool({
   }
 })();
 
-// 8) Registration endpoint
+// 6) Registration endpoint (unchanged)
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
@@ -99,7 +83,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// 9) Login endpoint with cache-busting avatar URL
+// 7) Login endpoint (unchanged)
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
@@ -125,7 +109,18 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// 10) Avatar upload endpoint
+// 8) Avatar upload endpoint (unchanged)
+const multer = require('multer');
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename:  (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const uniqueName = `${Date.now()}-${Math.round(Math.random()*1E9)}${ext}`;
+    cb(null, uniqueName);
+  }
+});
+const upload = multer({ storage });
+
 app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
   const { uid } = req.body;
   if (!req.file || !uid) {
@@ -141,11 +136,11 @@ app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
   }
 });
 
-// 11) Admin-only script upload endpoint
-app.post('/api/upload-script', upload.single('thumbnail'), async (req, res) => {
-  const { uid, title, placeId } = req.body;
-  if (!uid || !title || !placeId || !req.file) {
-    return res.status(400).json({ error: 'Missing fields or file' });
+// 9) Admin-only script upload endpoint — now accepts JSON body with thumbnail URL and scriptCode
+app.post('/api/upload-script', async (req, res) => {
+  const { uid, title, placeId, thumbnail, scriptCode } = req.body;
+  if (!uid || !title || !placeId || !thumbnail || !scriptCode) {
+    return res.status(400).json({ error: 'Missing fields' });
   }
 
   try {
@@ -154,18 +149,41 @@ app.post('/api/upload-script', upload.single('thumbnail'), async (req, res) => {
     if (!users.length) return res.status(401).json({ error: 'Invalid user' });
     if (!users[0].is_admin) return res.status(403).json({ error: 'Forbidden: Admins only' });
 
-    // Insert script into DB
-    const filename = req.file.filename;
     await pool.query(
-      'INSERT INTO scripts (title, placeId, thumbnail, uploader_id) VALUES (?, ?, ?, ?)',
-      [title, placeId, filename, uid]
+      'INSERT INTO scripts (title, placeId, thumbnail, scriptCode, uploader_id) VALUES (?, ?, ?, ?, ?)',
+      [title, placeId, thumbnail, scriptCode, uid]
     );
 
-    const thumbnailUrl = `${req.protocol}://${req.get('host')}/uploads/${filename}?v=${Date.now()}`;
-    res.json({ success: true, thumbnailUrl });
+    res.json({ success: true });
   } catch (e) {
     console.error('Upload script error:', e);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// 10) Endpoint to get all scripts with scriptCode included
+app.get('/api/scripts', async (req, res) => {
+  try {
+    const [scripts] = await pool.query(`
+      SELECT id, title, placeId, thumbnail, scriptCode, uploader_id, uploaded_at
+      FROM scripts
+      ORDER BY uploaded_at DESC
+    `);
+    res.json(scripts);
+  } catch (e) {
+    console.error('Fetch scripts error:', e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// 11) Example: Online users counter (if you want)
+app.get('/api/counters', async (req, res) => {
+  try {
+    // You can implement a real online user count if needed
+    // For now, just a dummy static number
+    res.json({ onlineUsers: 42 });
+  } catch (e) {
+    res.json({ onlineUsers: 0 });
   }
 });
 
