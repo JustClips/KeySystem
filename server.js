@@ -216,12 +216,19 @@ app.get('/api/scripts', async (req, res) => {
   }
 });
 
-// Online users counter (example)
+// Online users & keys generated counters endpoint
 app.get('/api/counters', async (req, res) => {
   try {
-    res.json({ onlineUsers: 42 });
+    // Example logic for onlineUsers; replace this with your real logic if needed
+    const onlineUsers = 42;
+
+    // Count generated keys (all rows in keys table)
+    const [[row]] = await pool.query('SELECT COUNT(*) AS total FROM `keys`');
+    const keysGenerated = row.total;
+
+    res.json({ onlineUsers, keysGenerated });
   } catch {
-    res.json({ onlineUsers: 0 });
+    res.json({ onlineUsers: 0, keysGenerated: 0 });
   }
 });
 
