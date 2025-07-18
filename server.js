@@ -20,12 +20,13 @@ if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR);
 }
 
-// 3) Multer setup for avatar uploads
+// 3) Multer setup for avatar uploads - add timestamp for cache busting
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename:  (req, file, cb) => {
     const ext = path.extname(file.originalname);
-    cb(null, `${req.body.uid}${ext}`);
+    const uniqueName = `${req.body.uid}-${Date.now()}${ext}`;
+    cb(null, uniqueName);
   }
 });
 const upload = multer({ storage });
@@ -83,7 +84,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// 8) Login endpoint
+// 8) Login endpoint with cache-busting on avatar URL
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
@@ -102,7 +103,7 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
 
     const avatarUrl = user.avatar
-      ? `${req.protocol}://${req.get('host')}/uploads/${user.avatar}`
+      ? `${req.protocol}://${req.get('host')}/uploads/${user.avatar}?v=${Date.now()}`
       : null;
 
     res.json({ uid: user.id, username, avatarUrl });
@@ -112,7 +113,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// 9) Avatar upload endpoint
+// 9) Avatar upload endpoint with cache-busting URL
 app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
   const { uid } = req.body;
   if (!req.file || !uid) {
@@ -123,7 +124,7 @@ app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
       'UPDATE users SET avatar = ? WHERE id = ?',
       [req.file.filename, uid]
     );
-    const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}?v=${Date.now()}`;
     res.json({ avatarUrl: url });
   } catch (e) {
     console.error('Avatar upload error:', e);
