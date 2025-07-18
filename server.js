@@ -1,9 +1,11 @@
+// server.js
 const express  = require('express');
 const cors     = require('cors');
 const mysql    = require('mysql2/promise');
 const bcrypt   = require('bcryptjs');
 const path     = require('path');
 const fs       = require('fs');
+const multer   = require('multer');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -64,18 +66,24 @@ const pool = mysql.createPool({
   }
 })();
 
-// 6) Registration endpoint (unchanged)
+// 6) Registration endpoint
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
     return res.status(400).json({ error: 'Missing fields' });
   try {
-    const [exists] = await pool.query('SELECT id FROM users WHERE username = ?', [username]);
+    const [exists] = await pool.query(
+      'SELECT id FROM users WHERE username = ?',
+      [username]
+    );
     if (exists.length)
       return res.status(409).json({ error: 'Username exists' });
 
     const hash = await bcrypt.hash(password, 10);
-    await pool.query('INSERT INTO users (username, password) VALUES (?, ?)', [username, hash]);
+    await pool.query(
+      'INSERT INTO users (username, password) VALUES (?, ?)',
+      [username, hash]
+    );
     res.json({ success: true });
   } catch (e) {
     console.error('Register error:', e);
@@ -83,13 +91,16 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// 7) Login endpoint (unchanged)
+// 7) Login endpoint
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
     return res.status(400).json({ error: 'Missing fields' });
   try {
-    const [rows] = await pool.query('SELECT id, password, avatar, is_admin FROM users WHERE username = ?', [username]);
+    const [rows] = await pool.query(
+      'SELECT id, password, avatar, is_admin FROM users WHERE username = ?',
+      [username]
+    );
     if (!rows.length)
       return res.status(401).json({ error: 'Invalid credentials' });
 
@@ -102,15 +113,19 @@ app.post('/api/login', async (req, res) => {
       ? `${req.protocol}://${req.get('host')}/uploads/${user.avatar}?v=${Date.now()}`
       : null;
 
-    res.json({ uid: user.id, username, avatarUrl, is_admin: !!user.is_admin });
+    res.json({
+      uid: user.id,
+      username,
+      avatarUrl,
+      is_admin: !!user.is_admin
+    });
   } catch (e) {
     console.error('Login error:', e);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// 8) Avatar upload endpoint (unchanged)
-const multer = require('multer');
+// 8) Avatar upload endpoint
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename:  (req, file, cb) => {
@@ -127,7 +142,10 @@ app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
     return res.status(400).json({ error: 'Missing file or uid' });
   }
   try {
-    await pool.query('UPDATE users SET avatar = ? WHERE id = ?', [req.file.filename, uid]);
+    await pool.query(
+      'UPDATE users SET avatar = ? WHERE id = ?',
+      [req.file.filename, uid]
+    );
     const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}?v=${Date.now()}`;
     res.json({ avatarUrl: url });
   } catch (e) {
@@ -136,7 +154,7 @@ app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
   }
 });
 
-// 9) Admin-only script upload endpoint — now accepts JSON body with thumbnail URL and scriptCode
+// 9) Admin-only script upload endpoint
 app.post('/api/upload-script', async (req, res) => {
   const { uid, title, placeId, thumbnail, scriptCode } = req.body;
   if (!uid || !title || !placeId || !thumbnail || !scriptCode) {
@@ -145,12 +163,16 @@ app.post('/api/upload-script', async (req, res) => {
 
   try {
     // Verify user is admin
-    const [users] = await pool.query('SELECT is_admin FROM users WHERE id = ?', [uid]);
+    const [users] = await pool.query(
+      'SELECT is_admin FROM users WHERE id = ?',
+      [uid]
+    );
     if (!users.length) return res.status(401).json({ error: 'Invalid user' });
-    if (!users[0].is_admin) return res.status(403).json({ error: 'Forbidden: Admins only' });
+    if (!users[0].is_admin) return res.status(403).json({ error: 'Admins only' });
 
     await pool.query(
-      'INSERT INTO scripts (title, placeId, thumbnail, scriptCode, uploader_id) VALUES (?, ?, ?, ?, ?)',
+      `INSERT INTO scripts (title, placeId, thumbnail, scriptCode, uploader_id)
+       VALUES (?, ?, ?, ?, ?)`,
       [title, placeId, thumbnail, scriptCode, uid]
     );
 
@@ -161,7 +183,7 @@ app.post('/api/upload-script', async (req, res) => {
   }
 });
 
-// 10) Endpoint to get all scripts with scriptCode included
+// 10) Get all scripts endpoint
 app.get('/api/scripts', async (req, res) => {
   try {
     const [scripts] = await pool.query(`
@@ -176,13 +198,11 @@ app.get('/api/scripts', async (req, res) => {
   }
 });
 
-// 11) Example: Online users counter (if you want)
+// 11) Online users counter (example)
 app.get('/api/counters', async (req, res) => {
   try {
-    // You can implement a real online user count if needed
-    // For now, just a dummy static number
     res.json({ onlineUsers: 42 });
-  } catch (e) {
+  } catch {
     res.json({ onlineUsers: 0 });
   }
 });
