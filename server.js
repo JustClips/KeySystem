@@ -10,10 +10,10 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 1) CORS: allow both your front‑end and this backend
+// 1) CORS: allow your front‑end and this backend
 app.use(cors({
   origin: [
-    'https://your-frontend-domain.com',          // replace with your actual front‑end URL
+    'https://w1ck1llon.com',                        // your actual front‑end URL
     'https://keysystem-production-3419.up.railway.app'
   ]
 }));
@@ -55,7 +55,7 @@ const pool = mysql.createPool({
         id INT AUTO_INCREMENT PRIMARY KEY,
         username VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
-        avatar VARCHAR(255) NULL
+        avatar   VARCHAR(255) NULL
       )
     `);
     console.log('Users table ensured');
@@ -67,11 +67,15 @@ const pool = mysql.createPool({
 // 7) Register route
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ error: 'Missing fields' });
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Missing fields' });
+  }
 
   try {
     const [exists] = await pool.query('SELECT id FROM users WHERE username = ?', [username]);
-    if (exists.length > 0) return res.status(409).json({ error: 'Username exists' });
+    if (exists.length > 0) {
+      return res.status(409).json({ error: 'Username exists' });
+    }
 
     const hash = await bcrypt.hash(password, 10);
     await pool.query('INSERT INTO users (username, password) VALUES (?, ?)', [username, hash]);
@@ -85,18 +89,24 @@ app.post('/api/register', async (req, res) => {
 // 8) Login route
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ error: 'Missing fields' });
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Missing fields' });
+  }
 
   try {
     const [rows] = await pool.query(
       'SELECT id, password, avatar FROM users WHERE username = ?',
       [username]
     );
-    if (rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
+    if (rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
 
     const user = rows[0];
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!valid) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
 
     const avatarUrl = user.avatar
       ? `${req.protocol}://${req.get('host')}/uploads/${user.avatar}`
