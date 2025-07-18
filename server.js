@@ -1,3 +1,4 @@
+// server.js
 const express  = require('express');
 const cors     = require('cors');
 const mysql    = require('mysql2/promise');
@@ -79,7 +80,7 @@ const pool = mysql.createPool({
   }
 })();
 
-// 8) Registration endpoint (unchanged)
+// 8) Registration endpoint
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
@@ -98,7 +99,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// 9) Login endpoint with cache-busting avatar URL (unchanged)
+// 9) Login endpoint with cache-busting avatar URL
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
@@ -124,7 +125,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// 10) Avatar upload endpoint (unchanged)
+// 10) Avatar upload endpoint
 app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
   const { uid } = req.body;
   if (!req.file || !uid) {
@@ -140,7 +141,7 @@ app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
   }
 });
 
-// 11) New admin-only script upload endpoint
+// 11) Admin-only script upload endpoint
 app.post('/api/upload-script', upload.single('thumbnail'), async (req, res) => {
   const { uid, title, placeId } = req.body;
   if (!uid || !title || !placeId || !req.file) {
@@ -148,7 +149,7 @@ app.post('/api/upload-script', upload.single('thumbnail'), async (req, res) => {
   }
 
   try {
-    // Check if user is admin
+    // Verify user is admin
     const [users] = await pool.query('SELECT is_admin FROM users WHERE id = ?', [uid]);
     if (!users.length) return res.status(401).json({ error: 'Invalid user' });
     if (!users[0].is_admin) return res.status(403).json({ error: 'Forbidden: Admins only' });
