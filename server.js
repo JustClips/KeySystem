@@ -6,13 +6,11 @@ const bcrypt   = require('bcryptjs');
 const multer   = require('multer');
 const path     = require('path');
 const fs       = require('fs');
-const http     = require('http');
-const { Server } = require('socket.io');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// 1) OPEN CORS for REST & Static
+// 1) OPEN CORS for your front‑end
 app.use(cors());
 app.use(express.json());
 
@@ -35,7 +33,7 @@ const upload = multer({ storage });
 // 4) Serve uploaded files
 app.use('/uploads', express.static(UPLOAD_DIR));
 
-// 5) MySQL pool
+// 5) Initialize MySQL pool
 const pool = mysql.createPool({
   host:     process.env.DB_HOST,
   user:     process.env.DB_USER,
@@ -43,8 +41,8 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
 });
 
-// 6) Ensure users table (adds avatar column)
-;(async () => {
+// 6) Ensure users table exists (with avatar column)
+(async () => {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -56,11 +54,11 @@ const pool = mysql.createPool({
     `);
     console.log('Users table ready');
   } catch (e) {
-    console.error('Table creation error:', e);
+    console.error('Error creating users table:', e);
   }
 })();
 
-// 7) Register route
+// 7) Registration endpoint
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
@@ -72,9 +70,10 @@ app.post('/api/register', async (req, res) => {
     );
     if (exists.length)
       return res.status(409).json({ error: 'Username exists' });
+
     const hash = await bcrypt.hash(password, 10);
     await pool.query(
-      'INSERT INTO users(username,password) VALUES(?,?)',
+      'INSERT INTO users (username, password) VALUES (?, ?)',
       [username, hash]
     );
     res.json({ success: true });
@@ -84,7 +83,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// 8) Login route
+// 8) Login endpoint
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
@@ -96,13 +95,16 @@ app.post('/api/login', async (req, res) => {
     );
     if (!rows.length)
       return res.status(401).json({ error: 'Invalid credentials' });
+
     const user = rows[0];
     const valid = await bcrypt.compare(password, user.password);
     if (!valid)
       return res.status(401).json({ error: 'Invalid credentials' });
+
     const avatarUrl = user.avatar
       ? `${req.protocol}://${req.get('host')}/uploads/${user.avatar}`
       : null;
+
     res.json({ uid: user.id, username, avatarUrl });
   } catch (e) {
     console.error('Login error:', e);
@@ -110,74 +112,26 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// 9) Avatar upload route
-app.post(
-  '/api/avatar',
-  upload.single('avatar'),
-  async (req, res) => {
-    const { uid } = req.body;
-    if (!req.file || !uid)
-      return res.status(400).json({ error: 'Missing file or uid' });
-    try {
-      await pool.query(
-        'UPDATE users SET avatar = ? WHERE id = ?',
-        [req.file.filename, uid]
-      );
-      const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-      res.json({ avatarUrl: url });
-    } catch (e) {
-      console.error('Avatar upload error:', e);
-      res.status(500).json({ error: 'Server error' });
-    }
+// 9) Avatar upload endpoint
+app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
+  const { uid } = req.body;
+  if (!req.file || !uid) {
+    return res.status(400).json({ error: 'Missing file or uid' });
   }
-);
-
-// 10) Create HTTP server + Socket.io for chat
-const httpServer = http.createServer(app);
-const io = new Server(httpServer, {
-  cors: {
-    origin: [
-      'https://w1ckllon.com',
-      'https://keysystem-production-3419.up.railway.app'
-    ],
-    methods: ['GET','POST']
+  try {
+    await pool.query(
+      'UPDATE users SET avatar = ? WHERE id = ?',
+      [req.file.filename, uid]
+    );
+    const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    res.json({ avatarUrl: url });
+  } catch (e) {
+    console.error('Avatar upload error:', e);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
-io.on('connection', socket => {
-  console.log('Client connected:', socket.id);
-
-  // Handle incoming chat messages
-  socket.on('chatMessage', async ({ uid, text }) => {
-    try {
-      // Lookup user info
-      const [[user]] = await pool.query(
-        'SELECT username, avatar FROM users WHERE id = ?',
-        [uid]
-      );
-      const avatarUrl = user.avatar
-        ? `${socket.handshake.headers.origin}/uploads/${user.avatar}`
-        : null;
-      const msg = {
-        uid,
-        username: user.username,
-        avatarUrl,
-        text,
-        ts: Date.now()
-      };
-      // Broadcast to everyone
-      io.emit('chatMessage', msg);
-    } catch (e) {
-      console.error('chatMessage error:', e);
-    }
-  });
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
-  });
-});
-
-// 11) Start server
-httpServer.listen(PORT, () => {
+// 10) Start server
+app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
