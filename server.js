@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,6 +14,27 @@ console.log('DB_HOST:', process.env.DB_HOST);
 console.log('DB_USER:', process.env.DB_USER);
 console.log('DB_PASS:', process.env.DB_PASS ? '******' : 'NO PASSWORD');
 console.log('DB_NAME:', process.env.DB_NAME);
+
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+// Multer setup for avatar uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `${req.body.uid}${ext}`);
+  }
+});
+const upload = multer({ storage });
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(uploadDir));
 
 // Create MySQL connection pool using env variables
 const pool = mysql.createPool({
@@ -23,14 +47,15 @@ const pool = mysql.createPool({
 app.use(cors());
 app.use(express.json());
 
-// Create users table if it doesn't exist
-(async () => {
+// Create users table if it doesn't exist (with avatar column)
+;(async () => {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         username VARCHAR(255) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL
+        password VARCHAR(255) NOT NULL,
+        avatar VARCHAR(255) NULL
       )
     `);
     console.log('Users table ensured');
@@ -49,9 +74,10 @@ app.post('/api/register', async (req, res) => {
     if (existing.length > 0) return res.status(409).json({ error: 'Username exists' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    await pool.query('INSERT INTO users (username, password) VALUES (?, ?)', [username, hashedPassword]);
-
+    await pool.query(
+      'INSERT INTO users (username, password) VALUES (?, ?)',
+      [username, hashedPassword]
+    );
     res.json({ success: true, message: 'User registered' });
   } catch (err) {
     console.error('Register error:', err);
@@ -65,16 +91,43 @@ app.post('/api/login', async (req, res) => {
   if (!username || !password) return res.status(400).json({ error: 'Missing fields' });
 
   try {
-    const [rows] = await pool.query('SELECT id, password FROM users WHERE username = ?', [username]);
+    const [rows] = await pool.query(
+      'SELECT id, password, avatar FROM users WHERE username = ?',
+      [username]
+    );
     if (rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
 
     const user = rows[0];
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
-    res.json({ uid: user.id, username });
+    const avatarUrl = user.avatar
+      ? `${req.protocol}://${req.get('host')}/uploads/${user.avatar}`
+      : null;
+
+    res.json({ uid: user.id, username, avatarUrl });
   } catch (err) {
     console.error('Login error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Avatar upload route
+app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
+  const { uid } = req.body;
+  if (!req.file || !uid) {
+    return res.status(400).json({ error: 'Missing file or uid' });
+  }
+
+  try {
+    await pool.query(
+      'UPDATE users SET avatar = ? WHERE id = ?',
+      [req.file.filename, uid]
+    );
+    const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    res.json({ avatarUrl: url });
+  } catch (err) {
+    console.error('Avatar upload error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
