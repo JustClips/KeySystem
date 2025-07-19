@@ -1,4 +1,7 @@
-require('dotenv').config(); // Only needed for local development
+// Only load dotenv in local development (not on Railway)
+if (process.env.NODE_ENV !== 'production') {
+  try { require('dotenv').config(); } catch {}
+}
 
 const express  = require('express');
 const cors     = require('cors');
