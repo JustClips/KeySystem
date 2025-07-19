@@ -1,3 +1,5 @@
+require('dotenv').config(); // Only needed for local development
+
 const express  = require('express');
 const cors     = require('cors');
 const mysql    = require('mysql2/promise');
@@ -6,6 +8,7 @@ const path     = require('path');
 const fs       = require('fs');
 const multer   = require('multer');
 const crypto   = require('crypto');
+const nodemailer = require('nodemailer');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -13,12 +16,21 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Serve uploaded files (avatars only)
+// ===== EMAIL TRANSPORT (secure, from ENV) =====
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER, // set in Railway/ENV
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+// ===== UPLOADS =====
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
 app.use('/uploads', express.static(UPLOAD_DIR));
 
-// Initialize MySQL pool
+// ===== MYSQL POOL =====
 const pool = mysql.createPool({
   host:     process.env.DB_HOST,
   user:     process.env.DB_USER,
@@ -26,34 +38,35 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
 });
 
-// Ensure users table exists
+// ===== ENSURE TABLES =====
 (async () => {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
-        id       INT AUTO_INCREMENT PRIMARY KEY,
+        id INT AUTO_INCREMENT PRIMARY KEY,
         username VARCHAR(255) UNIQUE NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
-        avatar   VARCHAR(255) NULL,
-        is_admin BOOLEAN DEFAULT FALSE
+        avatar VARCHAR(255) NULL,
+        is_admin TINYINT(1) DEFAULT 0,
+        is_verified TINYINT(1) DEFAULT 0,
+        verification_code VARCHAR(6),
+        regdate TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
     console.log('Users table ready');
   } catch (e) {
     console.error('Error creating users table:', e);
   }
-})();
 
-// Ensure scripts table exists
-(async () => {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS scripts (
-        id          INT AUTO_INCREMENT PRIMARY KEY,
-        title       VARCHAR(255) NOT NULL,
-        placeId     VARCHAR(50) NOT NULL,
-        thumbnail   VARCHAR(255) NOT NULL,
-        scriptCode  TEXT NOT NULL,
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        placeId VARCHAR(50) NOT NULL,
+        thumbnail VARCHAR(255) NOT NULL,
+        scriptCode TEXT NOT NULL,
         uploader_id INT NOT NULL,
         uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (uploader_id) REFERENCES users(id)
@@ -63,16 +76,13 @@ const pool = mysql.createPool({
   } catch (e) {
     console.error('Error creating scripts table:', e);
   }
-})();
 
-// Ensure keys table exists (for 6-hour key system)
-(async () => {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS \`keys\` (
-        id         INT AUTO_INCREMENT PRIMARY KEY,
-        user_id    INT NOT NULL,
-        key_value  VARCHAR(255) NOT NULL,
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        key_value VARCHAR(255) NOT NULL,
         expires_at DATETIME NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE KEY (user_id),
@@ -83,18 +93,15 @@ const pool = mysql.createPool({
   } catch (e) {
     console.error('Error creating keys table:', e);
   }
-})();
 
-// Ensure support tickets tables exist
-(async () => {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS tickets (
-        id          INT AUTO_INCREMENT PRIMARY KEY,
-        uid         INT NOT NULL,
-        subject     VARCHAR(255) NOT NULL,
-        message     TEXT NOT NULL,
-        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        uid INT NOT NULL,
+        subject VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (uid) REFERENCES users(id)
       )
     `);
@@ -106,11 +113,11 @@ const pool = mysql.createPool({
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS ticket_replies (
-        id          INT AUTO_INCREMENT PRIMARY KEY,
-        ticket_id   INT NOT NULL,
-        admin_uid   INT NOT NULL,
-        message     TEXT NOT NULL,
-        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        ticket_id INT NOT NULL,
+        admin_uid INT NOT NULL,
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
         FOREIGN KEY (admin_uid) REFERENCES users(id)
       )
@@ -121,41 +128,79 @@ const pool = mysql.createPool({
   }
 })();
 
-/* ========== AUTH & USER ROUTES ========== */
+// ===== AUTH & USER ROUTES =====
 
-// Registration endpoint
+// Register & send verification code to email
 app.post('/api/register', async (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password)
+  const { username, email, password } = req.body;
+  if (!username || !email || !password)
     return res.status(400).json({ error: 'Missing fields' });
+
   try {
     const [exists] = await pool.query(
-      'SELECT id FROM users WHERE username = ?',
-      [username]
+      'SELECT id FROM users WHERE username = ? OR email = ?', [username, email]
     );
     if (exists.length)
-      return res.status(409).json({ error: 'Username exists' });
+      return res.status(409).json({ error: 'Username or Email exists' });
 
     const hash = await bcrypt.hash(password, 10);
+    const verification_code = Math.floor(100000 + Math.random() * 900000).toString();
+
     await pool.query(
-      'INSERT INTO users (username, password) VALUES (?, ?)',
-      [username, hash]
+      'INSERT INTO users (username, email, password, is_verified, verification_code) VALUES (?, ?, ?, 0, ?)',
+      [username, email, hash, verification_code]
     );
-    res.json({ success: true });
+
+    await transporter.sendMail({
+      from: `"Eps1llon Hub" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Eps1llon Hub Email Verification Code',
+      text: `Your verification code is: ${verification_code}`,
+      html: `<div style="font-family:sans-serif;font-size:18px">
+               <b>Your Eps1llon Hub code:</b>
+               <div style="font-size:32px;letter-spacing:6px;margin:16px 0">${verification_code}</div>
+               <div>Enter this code to complete your signup.</div>
+             </div>`
+    });
+
+    res.json({ success: true, message: 'Verification code sent to email.' });
   } catch (e) {
     console.error('Register error:', e);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Login endpoint
+// Verify email
+app.post('/api/verify-email', async (req, res) => {
+  const { email, code } = req.body;
+  if (!email || !code) return res.status(400).json({ error: 'Missing fields' });
+
+  try {
+    const [rows] = await pool.query(
+      'SELECT id FROM users WHERE email = ? AND verification_code = ? AND is_verified = 0',
+      [email, code]
+    );
+    if (!rows.length) return res.status(400).json({ error: 'Invalid or expired code.' });
+
+    await pool.query(
+      'UPDATE users SET is_verified = 1, verification_code = NULL WHERE email = ?',
+      [email]
+    );
+    res.json({ success: true, message: 'Email verified.' });
+  } catch (e) {
+    console.error('Verify email error:', e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Login - blocks unverified users
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
     return res.status(400).json({ error: 'Missing fields' });
   try {
     const [rows] = await pool.query(
-      'SELECT id, password, avatar, is_admin FROM users WHERE username = ?',
+      'SELECT id, password, avatar, is_admin, is_verified FROM users WHERE username = ?',
       [username]
     );
     if (!rows.length)
@@ -165,6 +210,9 @@ app.post('/api/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid)
       return res.status(401).json({ error: 'Invalid credentials' });
+
+    if (!user.is_verified)
+      return res.status(403).json({ error: 'Email not verified' });
 
     const avatarUrl = user.avatar
       ? `${req.protocol}://${req.get('host')}/uploads/${user.avatar}?v=${Date.now()}`
@@ -182,7 +230,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Avatar upload endpoint
+// Avatar upload
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename:  (req, file, cb) => {
@@ -211,7 +259,7 @@ app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
   }
 });
 
-/* ========== SCRIPTS ROUTES ========== */
+// ===== SCRIPTS =====
 
 // Admin-only script upload endpoint
 app.post('/api/upload-script', async (req, res) => {
@@ -257,7 +305,7 @@ app.get('/api/scripts', async (req, res) => {
   }
 });
 
-/* ========== COUNTERS ========== */
+// ===== COUNTERS =====
 
 app.get('/api/counters', async (req, res) => {
   try {
@@ -274,7 +322,7 @@ app.get('/api/counters', async (req, res) => {
   }
 });
 
-/* ========== KEY SYSTEM ========== */
+// ===== KEY SYSTEM =====
 
 // Generate or return a unique 6-hour key for a user
 app.post('/api/generate-key', async (req, res) => {
@@ -324,7 +372,7 @@ app.post('/api/verify-key', async (req, res) => {
   }
 });
 
-/* ========== SUPPORT TICKETS ========== */
+// ===== SUPPORT TICKETS =====
 
 // Create a new ticket
 app.post('/api/tickets', async (req, res) => {
@@ -418,8 +466,7 @@ app.post('/api/tickets/:id/reply', async (req, res) => {
   }
 });
 
-/* ========== START SERVER ========== */
-
+// ===== START SERVER =====
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
