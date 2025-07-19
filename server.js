@@ -75,7 +75,8 @@ const pool = mysql.createPool({
         key_value  VARCHAR(255) NOT NULL,
         expires_at DATETIME NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE KEY (user_id)
+        UNIQUE KEY (user_id),
+        FOREIGN KEY (user_id) REFERENCES users(id)
       )
     `);
     console.log('Keys table ready');
@@ -83,6 +84,44 @@ const pool = mysql.createPool({
     console.error('Error creating keys table:', e);
   }
 })();
+
+// Ensure support tickets tables exist
+(async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS tickets (
+        id          INT AUTO_INCREMENT PRIMARY KEY,
+        uid         INT NOT NULL,
+        subject     VARCHAR(255) NOT NULL,
+        message     TEXT NOT NULL,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (uid) REFERENCES users(id)
+      )
+    `);
+    console.log('Tickets table ready');
+  } catch (e) {
+    console.error('Error creating tickets table:', e);
+  }
+
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ticket_replies (
+        id          INT AUTO_INCREMENT PRIMARY KEY,
+        ticket_id   INT NOT NULL,
+        admin_uid   INT NOT NULL,
+        message     TEXT NOT NULL,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+        FOREIGN KEY (admin_uid) REFERENCES users(id)
+      )
+    `);
+    console.log('Ticket replies table ready');
+  } catch (e) {
+    console.error('Error creating ticket_replies table:', e);
+  }
+})();
+
+/* ========== AUTH & USER ROUTES ========== */
 
 // Registration endpoint
 app.post('/api/register', async (req, res) => {
@@ -172,6 +211,8 @@ app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
   }
 });
 
+/* ========== SCRIPTS ROUTES ========== */
+
 // Admin-only script upload endpoint
 app.post('/api/upload-script', async (req, res) => {
   const { uid, title, placeId, thumbnail, scriptCode } = req.body;
@@ -216,13 +257,14 @@ app.get('/api/scripts', async (req, res) => {
   }
 });
 
-// Online users & keys generated counters endpoint
+/* ========== COUNTERS ========== */
+
 app.get('/api/counters', async (req, res) => {
   try {
-    // Example logic for onlineUsers; replace this with your real logic if needed
+    // Example logic for onlineUsers; replace with your real logic if needed
     const onlineUsers = 42;
 
-    // Count generated keys (all rows in keys table)
+    // Count generated keys
     const [[row]] = await pool.query('SELECT COUNT(*) AS total FROM `keys`');
     const keysGenerated = row.total;
 
@@ -264,7 +306,7 @@ app.post('/api/generate-key', async (req, res) => {
   }
 });
 
-// Key verification for Roblox/other (KEY: returns {valid: true/false})
+// Key verification endpoint
 app.post('/api/verify-key', async (req, res) => {
   const { key } = req.body;
   if (!key) return res.status(400).json({ valid: false, error: 'No key provided' });
@@ -282,9 +324,102 @@ app.post('/api/verify-key', async (req, res) => {
   }
 });
 
-/* ========== END KEY SYSTEM ========== */
+/* ========== SUPPORT TICKETS ========== */
 
-// Start server
+// Create a new ticket
+app.post('/api/tickets', async (req, res) => {
+  const { uid, subject, message } = req.body;
+  if (!uid || !subject || !message) {
+    return res.status(400).json({ success: false, error: 'Missing fields.' });
+  }
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO tickets (uid, subject, message) VALUES (?, ?, ?)',
+      [uid, subject, message]
+    );
+    res.json({ success: true, ticketId: result.insertId });
+  } catch (err) {
+    console.error('INSERT TICKET ERR', err);
+    res.status(500).json({ success: false, error: 'Database error.' });
+  }
+});
+
+// List all tickets (admins only)
+app.get('/api/tickets', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT t.id, t.subject, t.created_at, u.username
+       FROM tickets t
+       JOIN users u ON t.uid = u.id
+       ORDER BY t.created_at DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('FETCH TICKETS ERR', err);
+    res.status(500).json({ success: false, error: 'Database error.' });
+  }
+});
+
+// Get one ticket + its replies
+app.get('/api/tickets/:id', async (req, res) => {
+  const ticketId = req.params.id;
+  try {
+    // fetch ticket
+    const [[ticket]] = await pool.query(
+      `SELECT t.id, t.subject, t.message, t.created_at, u.username
+       FROM tickets t
+       JOIN users u ON t.uid = u.id
+       WHERE t.id = ?`,
+      [ticketId]
+    );
+    if (!ticket) return res.status(404).json({ error: 'Not found.' });
+
+    // fetch replies
+    const [replies] = await pool.query(
+      `SELECT r.id, r.message, r.created_at, u.username AS admin_username
+       FROM ticket_replies r
+       JOIN users u ON r.admin_uid = u.id
+       WHERE r.ticket_id = ?
+       ORDER BY r.created_at ASC`,
+      [ticketId]
+    );
+
+    res.json({ ...ticket, replies });
+  } catch (err) {
+    console.error('FETCH TICKET DETAIL ERR', err);
+    res.status(500).json({ success: false, error: 'Database error.' });
+  }
+});
+
+// Post a reply to a ticket (admins only)
+app.post('/api/tickets/:id/reply', async (req, res) => {
+  const ticketId = req.params.id;
+  const { uid, message } = req.body;
+  if (!uid || !message) {
+    return res.status(400).json({ success: false, error: 'Missing fields.' });
+  }
+  try {
+    // Verify user is admin
+    const [users] = await pool.query(
+      'SELECT is_admin FROM users WHERE id = ?',
+      [uid]
+    );
+    if (!users.length) return res.status(401).json({ success: false, error: 'Invalid user.' });
+    if (!users[0].is_admin) return res.status(403).json({ success: false, error: 'Admins only.' });
+
+    await pool.query(
+      'INSERT INTO ticket_replies (ticket_id, admin_uid, message) VALUES (?, ?, ?)',
+      [ticketId, uid, message]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('INSERT REPLY ERR', err);
+    res.status(500).json({ success: false, error: 'Database error.' });
+  }
+});
+
+/* ========== START SERVER ========== */
+
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
