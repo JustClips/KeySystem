@@ -3,15 +3,15 @@ if (process.env.NODE_ENV !== 'production') {
   try { require('dotenv').config(); } catch {}
 }
 
-const express  = require('express');
-const cors     = require('cors');
-const mysql    = require('mysql2/promise');
-const bcrypt   = require('bcryptjs');
-const path     = require('path');
-const fs       = require('fs');
-const multer   = require('multer');
-const crypto   = require('crypto');
-const nodemailer = require('nodemailer');
+const express      = require('express');
+const cors         = require('cors');
+const mysql        = require('mysql2/promise');
+const bcrypt       = require('bcryptjs');
+const path         = require('path');
+const fs           = require('fs');
+const multer       = require('multer');
+const crypto       = require('crypto');
+const nodemailer   = require('nodemailer');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -130,6 +130,23 @@ const pool = mysql.createPool({
     console.log('Ticket replies table ready');
   } catch (e) {
     console.error('Error creating ticket_replies table:', e);
+  }
+
+  // ===== PASSWORD RESETS =====
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS password_resets (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        token VARCHAR(64) NOT NULL UNIQUE,
+        expires_at DATETIME NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+    console.log('Password resets table ready');
+  } catch (e) {
+    console.error('Error creating password_resets table:', e);
   }
 })();
 
@@ -400,12 +417,12 @@ app.post('/api/tickets', async (req, res) => {
 // List all tickets (admins only)
 app.get('/api/tickets', async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      `SELECT t.id, t.subject, t.created_at, u.username
-       FROM tickets t
-       JOIN users u ON t.uid = u.id
-       ORDER BY t.created_at DESC`
-    );
+    const [rows] = await pool.query(`
+      SELECT t.id, t.subject, t.created_at, u.username
+      FROM tickets t
+      JOIN users u ON t.uid = u.id
+      ORDER BY t.created_at DESC
+    `);
     res.json(rows);
   } catch (err) {
     console.error('FETCH TICKETS ERR', err);
@@ -418,24 +435,22 @@ app.get('/api/tickets/:id', async (req, res) => {
   const ticketId = req.params.id;
   try {
     // fetch ticket
-    const [[ticket]] = await pool.query(
-      `SELECT t.id, t.subject, t.message, t.created_at, u.username
-       FROM tickets t
-       JOIN users u ON t.uid = u.id
-       WHERE t.id = ?`,
-      [ticketId]
-    );
+    const [[ticket]] = await pool.query(`
+      SELECT t.id, t.subject, t.message, t.created_at, u.username
+      FROM tickets t
+      JOIN users u ON t.uid = u.id
+      WHERE t.id = ?
+    `, [ticketId]);
     if (!ticket) return res.status(404).json({ error: 'Not found.' });
 
     // fetch replies
-    const [replies] = await pool.query(
-      `SELECT r.id, r.message, r.created_at, u.username AS admin_username
-       FROM ticket_replies r
-       JOIN users u ON r.admin_uid = u.id
-       WHERE r.ticket_id = ?
-       ORDER BY r.created_at ASC`,
-      [ticketId]
-    );
+    const [replies] = await pool.query(`
+      SELECT r.id, r.message, r.created_at, u.username AS admin_username
+      FROM ticket_replies r
+      JOIN users u ON r.admin_uid = u.id
+      WHERE r.ticket_id = ?
+      ORDER BY r.created_at ASC
+    `, [ticketId]);
 
     res.json({ ...ticket, replies });
   } catch (err) {
@@ -454,8 +469,7 @@ app.post('/api/tickets/:id/reply', async (req, res) => {
   try {
     // Verify user is admin
     const [users] = await pool.query(
-      'SELECT is_admin FROM users WHERE id = ?',
-      [uid]
+      'SELECT is_admin FROM users WHERE id = ?', [uid]
     );
     if (!users.length) return res.status(401).json({ success: false, error: 'Invalid user.' });
     if (!users[0].is_admin) return res.status(403).json({ success: false, error: 'Admins only.' });
@@ -468,6 +482,87 @@ app.post('/api/tickets/:id/reply', async (req, res) => {
   } catch (err) {
     console.error('INSERT REPLY ERR', err);
     res.status(500).json({ success: false, error: 'Database error.' });
+  }
+});
+
+// ===== PASSWORD RESET =====
+
+// Request password reset
+app.post('/api/request-password-reset', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+
+  try {
+    const [[user]] = await pool.query(
+      'SELECT id, username FROM users WHERE email = ?', [email]
+    );
+    // Always respond success for security
+    if (!user) return res.json({ success: true });
+
+    // Token expires in 5 minutes
+    const token     = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+    await pool.query(
+      `INSERT INTO password_resets (user_id, token, expires_at)
+       VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE token = ?, expires_at = ?`,
+      [user.id, token, expiresAt, token, expiresAt]
+    );
+
+    const front = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+    const link  = `${front}/reset-password?token=${token}`;
+
+    await transporter.sendMail({
+      from: `"Eps1llon Hub" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Your password reset link',
+      html: `
+        <p>Hi ${user.username},</p>
+        <p>Click <a href="${link}">here</a> to reset your password. This link expires in 5 minutes.</p>
+        <p>If you didn’t request this, just ignore.</p>
+      `
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Request reset error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Reset password using token
+app.post('/api/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: 'Token and newPassword are required' });
+  }
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT user_id FROM password_resets
+       WHERE token = ? AND expires_at > NOW()`,
+      [token]
+    );
+    if (!rows.length) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+    const userId = rows[0].user_id;
+    const hash   = await bcrypt.hash(newPassword, 10);
+
+    await pool.query(
+      'UPDATE users SET password = ? WHERE id = ?',
+      [hash, userId]
+    );
+    await pool.query(
+      'DELETE FROM password_resets WHERE user_id = ?',
+      [userId]
+    );
+
+    res.json({ success: true, message: 'Password has been reset.' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
