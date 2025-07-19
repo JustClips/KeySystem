@@ -19,11 +19,13 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// ===== EMAIL TRANSPORT (secure, from ENV) =====
+// ===== EMAIL TRANSPORT (DreamHost SMTP) =====
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.dreamhost.com',
+  port: 465,           // 465 for SSL
+  secure: true,        // True for port 465
   auth: {
-    user: process.env.EMAIL_USER, // set in Railway/ENV
+    user: process.env.EMAIL_USER, // full email, e.g. support@yourdomain.com
     pass: process.env.EMAIL_PASS
   }
 });
