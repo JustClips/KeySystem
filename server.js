@@ -152,7 +152,7 @@ const pool = mysql.createPool({
 
 // ===== AUTH & USER ROUTES =====
 
-// Register & send verification code to email
+// Register user (no email verification required)
 app.post('/api/register', async (req, res) => {
   const { username, email, password } = req.body;
   if (!username || !email || !password)
@@ -166,56 +166,21 @@ app.post('/api/register', async (req, res) => {
       return res.status(409).json({ error: 'Username or Email exists' });
 
     const hash = await bcrypt.hash(password, 10);
-    const verification_code = Math.floor(100000 + Math.random() * 900000).toString();
 
+    // Insert user as verified
     await pool.query(
-      'INSERT INTO users (username, email, password, is_verified, verification_code) VALUES (?, ?, ?, 0, ?)',
-      [username, email, hash, verification_code]
+      'INSERT INTO users (username, email, password, is_verified) VALUES (?, ?, ?, 1)',
+      [username, email, hash]
     );
 
-    await transporter.sendMail({
-      from: `"Eps1llon Hub" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: 'Eps1llon Hub Email Verification Code',
-      text: `Your verification code is: ${verification_code}`,
-      html: `<div style="font-family:sans-serif;font-size:18px">
-               <b>Your Eps1llon Hub code:</b>
-               <div style="font-size:32px;letter-spacing:6px;margin:16px 0">${verification_code}</div>
-               <div>Enter this code to complete your signup.</div>
-             </div>`
-    });
-
-    res.json({ success: true, message: 'Verification code sent to email.' });
+    res.json({ success: true, message: 'Registration successful.' });
   } catch (e) {
     console.error('Register error:', e);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Verify email
-app.post('/api/verify-email', async (req, res) => {
-  const { email, code } = req.body;
-  if (!email || !code) return res.status(400).json({ error: 'Missing fields' });
-
-  try {
-    const [rows] = await pool.query(
-      'SELECT id FROM users WHERE email = ? AND verification_code = ? AND is_verified = 0',
-      [email, code]
-    );
-    if (!rows.length) return res.status(400).json({ error: 'Invalid or expired code.' });
-
-    await pool.query(
-      'UPDATE users SET is_verified = 1, verification_code = NULL WHERE email = ?',
-      [email]
-    );
-    res.json({ success: true, message: 'Email verified.' });
-  } catch (e) {
-    console.error('Verify email error:', e);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Login - blocks unverified users
+// Login - verification check removed
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
@@ -232,9 +197,6 @@ app.post('/api/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid)
       return res.status(401).json({ error: 'Invalid credentials' });
-
-    if (!user.is_verified)
-      return res.status(403).json({ error: 'Email not verified' });
 
     const avatarUrl = user.avatar
       ? `${req.protocol}://${req.get('host')}/uploads/${user.avatar}?v=${Date.now()}`
