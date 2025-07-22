@@ -11,24 +11,13 @@ const path         = require('path');
 const fs           = require('fs');
 const multer       = require('multer');
 const crypto       = require('crypto');
-const nodemailer   = require('nodemailer');
+// No longer need nodemailer
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-
-// ===== EMAIL TRANSPORT (DreamHost SMTP) =====
-const transporter = nodemailer.createTransport({
-  host: 'smtp.dreamhost.com',
-  port: 465,           // 465 for SSL
-  secure: true,        // True for port 465
-  auth: {
-    user: process.env.EMAIL_USER, // full email, e.g. support@yourdomain.com
-    pass: process.env.EMAIL_PASS
-  }
-});
 
 // ===== UPLOADS =====
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
@@ -46,11 +35,12 @@ const pool = mysql.createPool({
 // ===== ENSURE TABLES =====
 (async () => {
   try {
+    // MODIFIED: email is now optional and not unique
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         username VARCHAR(255) UNIQUE NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
+        email VARCHAR(255) NULL, 
         password VARCHAR(255) NOT NULL,
         avatar VARCHAR(255) NULL,
         is_admin TINYINT(1) DEFAULT 0,
@@ -130,44 +120,32 @@ const pool = mysql.createPool({
     console.error('Error creating ticket_replies table:', e);
   }
 
-  // ===== PASSWORD RESETS =====
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS password_resets (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        token VARCHAR(64) NOT NULL UNIQUE,
-        expires_at DATETIME NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      )
-    `);
-    console.log('Password resets table ready');
-  } catch (e) {
-    console.error('Error creating password_resets table:', e);
-  }
+  // REMOVED: No longer need the password_resets table
 })();
 
 // ===== AUTH & USER ROUTES =====
 
 // Register user
 app.post('/api/register', async (req, res) => {
-  const { username, email, password } = req.body;
-  if (!username || !email || !password)
+  // MODIFIED: Only username and password are required
+  const { username, password } = req.body;
+  if (!username || !password)
     return res.status(400).json({ error: 'Missing fields' });
 
   try {
+    // MODIFIED: Only check for existing username
     const [exists] = await pool.query(
-      'SELECT id FROM users WHERE username = ? OR email = ?', [username, email]
+      'SELECT id FROM users WHERE username = ?', [username]
     );
     if (exists.length)
-      return res.status(409).json({ error: 'Username or Email exists' });
+      return res.status(409).json({ error: 'Username exists' });
 
     const hash = await bcrypt.hash(password, 10);
 
+    // MODIFIED: Insert only username and password
     await pool.query(
-      'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
-      [username, email, hash]
+      'INSERT INTO users (username, password) VALUES (?, ?)',
+      [username, hash]
     );
 
     res.json({ success: true, message: 'Registration successful.' });
@@ -444,86 +422,9 @@ app.post('/api/tickets/:id/reply', async (req, res) => {
   }
 });
 
-// ===== PASSWORD RESET =====
 
-// Request password reset
-app.post('/api/request-password-reset', async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email is required' });
+// REMOVED: All password reset functionality has been deleted.
 
-  try {
-    const [[user]] = await pool.query(
-      'SELECT id, username FROM users WHERE email = ?', [email]
-    );
-    // Always respond success for security
-    if (!user) return res.json({ success: true });
-
-    // Token expires in 5 minutes
-    const token     = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-
-    await pool.query(
-      `INSERT INTO password_resets (user_id, token, expires_at)
-       VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE token = ?, expires_at = ?`,
-      [user.id, token, expiresAt, token, expiresAt]
-    );
-
-    const front = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
-    const link  = `${front}/reset-password?token=${token}`;
-
-    await transporter.sendMail({
-      from: `"Eps1llon Hub" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: 'Your password reset link',
-      html: `
-        <p>Hi ${user.username},</p>
-        <p>Click <a href="${link}">here</a> to reset your password. This link expires in 5 minutes.</p>
-        <p>If you didn’t request this, just ignore.</p>
-      `
-    });
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Request reset error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Reset password using token
-app.post('/api/reset-password', async (req, res) => {
-  const { token, newPassword } = req.body;
-  if (!token || !newPassword) {
-    return res.status(400).json({ error: 'Token and newPassword are required' });
-  }
-
-  try {
-    const [rows] = await pool.query(
-      `SELECT user_id FROM password_resets
-       WHERE token = ? AND expires_at > NOW()`,
-      [token]
-    );
-    if (!rows.length) {
-      return res.status(400).json({ error: 'Invalid or expired token' });
-    }
-    const userId = rows[0].user_id;
-    const hash   = await bcrypt.hash(newPassword, 10);
-
-    await pool.query(
-      'UPDATE users SET password = ? WHERE id = ?',
-      [hash, userId]
-    );
-    await pool.query(
-      'DELETE FROM password_resets WHERE user_id = ?',
-      [userId]
-    );
-
-    res.json({ success: true, message: 'Password has been reset.' });
-  } catch (err) {
-    console.error('Reset password error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
 
 // ===== START SERVER =====
 app.listen(PORT, () => {
