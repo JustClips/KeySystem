@@ -54,8 +54,6 @@ const pool = mysql.createPool({
         password VARCHAR(255) NOT NULL,
         avatar VARCHAR(255) NULL,
         is_admin TINYINT(1) DEFAULT 0,
-        is_verified TINYINT(1) DEFAULT 0,
-        verification_code VARCHAR(6),
         regdate TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -152,7 +150,7 @@ const pool = mysql.createPool({
 
 // ===== AUTH & USER ROUTES =====
 
-// Register user (no email verification required)
+// Register user
 app.post('/api/register', async (req, res) => {
   const { username, email, password } = req.body;
   if (!username || !email || !password)
@@ -167,9 +165,8 @@ app.post('/api/register', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
 
-    // Insert user as verified
     await pool.query(
-      'INSERT INTO users (username, email, password, is_verified) VALUES (?, ?, ?, 1)',
+      'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
       [username, email, hash]
     );
 
@@ -180,14 +177,14 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// Login - verification check removed
+// Login
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
     return res.status(400).json({ error: 'Missing fields' });
   try {
     const [rows] = await pool.query(
-      'SELECT id, password, avatar, is_admin, is_verified FROM users WHERE username = ?',
+      'SELECT id, password, avatar, is_admin FROM users WHERE username = ?',
       [username]
     );
     if (!rows.length)
