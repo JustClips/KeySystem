@@ -11,7 +11,6 @@ const path         = require('path');
 const fs           = require('fs');
 const multer       = require('multer');
 const crypto       = require('crypto');
-// No longer need nodemailer
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -19,10 +18,15 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// ===== UPLOADS =====
+// ===== STATIC FILE SERVING =====
+// Serve files from the 'uploads' directory at the /uploads URL path
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
 app.use('/uploads', express.static(UPLOAD_DIR));
+
+// Serve any other static files (like CSS, images) from a 'public' directory
+app.use(express.static(path.join(__dirname, 'public')));
+
 
 // ===== MYSQL POOL =====
 const pool = mysql.createPool({
@@ -35,7 +39,6 @@ const pool = mysql.createPool({
 // ===== ENSURE TABLES =====
 (async () => {
   try {
-    // MODIFIED: email is now optional and not unique
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -119,21 +122,19 @@ const pool = mysql.createPool({
   } catch (e) {
     console.error('Error creating ticket_replies table:', e);
   }
-
-  // REMOVED: No longer need the password_resets table
 })();
 
-// ===== AUTH & USER ROUTES =====
+// =======================================================
+// ===== API ROUTES =====
+// =======================================================
 
-// Register user
+// ===== AUTH & USER API ROUTES =====
 app.post('/api/register', async (req, res) => {
-  // MODIFIED: Only username and password are required
   const { username, password } = req.body;
   if (!username || !password)
     return res.status(400).json({ error: 'Missing fields' });
 
   try {
-    // MODIFIED: Only check for existing username
     const [exists] = await pool.query(
       'SELECT id FROM users WHERE username = ?', [username]
     );
@@ -141,13 +142,10 @@ app.post('/api/register', async (req, res) => {
       return res.status(409).json({ error: 'Username exists' });
 
     const hash = await bcrypt.hash(password, 10);
-
-    // MODIFIED: Insert only username and password
     await pool.query(
       'INSERT INTO users (username, password) VALUES (?, ?)',
       [username, hash]
     );
-
     res.json({ success: true, message: 'Registration successful.' });
   } catch (e) {
     console.error('Register error:', e);
@@ -155,7 +153,6 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// Login
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
@@ -189,7 +186,6 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Avatar upload
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename:  (req, file, cb) => {
@@ -218,30 +214,23 @@ app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
   }
 });
 
-// ===== SCRIPTS =====
-
-// Admin-only script upload endpoint
+// ===== SCRIPTS API ROUTES =====
 app.post('/api/upload-script', async (req, res) => {
   const { uid, title, placeId, thumbnail, scriptCode } = req.body;
   if (!uid || !title || !placeId || !thumbnail || !scriptCode) {
     return res.status(400).json({ error: 'Missing fields' });
   }
-
   try {
-    // Verify user is admin
     const [users] = await pool.query(
       'SELECT is_admin FROM users WHERE id = ?',
       [uid]
     );
-    if (!users.length) return res.status(401).json({ error: 'Invalid user' });
-    if (!users[0].is_admin) return res.status(403).json({ error: 'Admins only' });
-
+    if (!users.length || !users[0].is_admin) return res.status(403).json({ error: 'Admins only' });
     await pool.query(
       `INSERT INTO scripts (title, placeId, thumbnail, scriptCode, uploader_id)
        VALUES (?, ?, ?, ?, ?)`,
       [title, placeId, thumbnail, scriptCode, uid]
     );
-
     res.json({ success: true });
   } catch (e) {
     console.error('Upload script error:', e);
@@ -249,7 +238,6 @@ app.post('/api/upload-script', async (req, res) => {
   }
 });
 
-// Get all scripts endpoint
 app.get('/api/scripts', async (req, res) => {
   try {
     const [scripts] = await pool.query(`
@@ -264,34 +252,24 @@ app.get('/api/scripts', async (req, res) => {
   }
 });
 
-// ===== COUNTERS =====
-
+// ===== COUNTERS API ROUTES =====
 app.get('/api/counters', async (req, res) => {
   try {
-    // Example logic for onlineUsers; replace with your real logic if needed
-    const onlineUsers = 42;
-
-    // Count generated keys
+    const onlineUsers = 42; // Placeholder, replace with your logic
     const [[row]] = await pool.query('SELECT COUNT(*) AS total FROM `keys`');
     const keysGenerated = row.total;
-
     res.json({ onlineUsers, keysGenerated });
   } catch {
     res.json({ onlineUsers: 0, keysGenerated: 0 });
   }
 });
 
-// ===== KEY SYSTEM =====
-
-// Generate or return a unique 6-hour key for a user
+// ===== KEY SYSTEM API ROUTES =====
 app.post('/api/generate-key', async (req, res) => {
   const { uid } = req.body;
   if (!uid) return res.status(400).json({ error: 'Missing user ID' });
-
   const sixHoursFromNow = new Date(Date.now() + 6 * 60 * 60 * 1000);
-
   try {
-    // Check for existing, unexpired key
     const [existing] = await pool.query(
       'SELECT key_value, expires_at FROM `keys` WHERE user_id = ? AND expires_at > NOW()',
       [uid]
@@ -299,8 +277,6 @@ app.post('/api/generate-key', async (req, res) => {
     if (existing.length) {
       return res.json({ key: existing[0].key_value, expires_at: existing[0].expires_at });
     }
-
-    // Generate a new key
     const newKey = crypto.randomBytes(24).toString('hex');
     await pool.query(
       'INSERT INTO `keys` (user_id, key_value, expires_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE key_value=?, expires_at=?',
@@ -313,11 +289,9 @@ app.post('/api/generate-key', async (req, res) => {
   }
 });
 
-// Key verification endpoint
 app.post('/api/verify-key', async (req, res) => {
   const { key } = req.body;
   if (!key) return res.status(400).json({ valid: false, error: 'No key provided' });
-
   try {
     const [rows] = await pool.query(
       'SELECT user_id FROM `keys` WHERE key_value = ? AND expires_at > NOW()',
@@ -331,9 +305,7 @@ app.post('/api/verify-key', async (req, res) => {
   }
 });
 
-// ===== SUPPORT TICKETS =====
-
-// Create a new ticket
+// ===== SUPPORT TICKETS API ROUTES =====
 app.post('/api/tickets', async (req, res) => {
   const { uid, subject, message } = req.body;
   if (!uid || !subject || !message) {
@@ -351,7 +323,6 @@ app.post('/api/tickets', async (req, res) => {
   }
 });
 
-// List all tickets (admins only)
 app.get('/api/tickets', async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -367,11 +338,9 @@ app.get('/api/tickets', async (req, res) => {
   }
 });
 
-// Get one ticket + its replies
 app.get('/api/tickets/:id', async (req, res) => {
   const ticketId = req.params.id;
   try {
-    // fetch ticket
     const [[ticket]] = await pool.query(`
       SELECT t.id, t.subject, t.message, t.created_at, u.username
       FROM tickets t
@@ -380,7 +349,6 @@ app.get('/api/tickets/:id', async (req, res) => {
     `, [ticketId]);
     if (!ticket) return res.status(404).json({ error: 'Not found.' });
 
-    // fetch replies
     const [replies] = await pool.query(`
       SELECT r.id, r.message, r.created_at, u.username AS admin_username
       FROM ticket_replies r
@@ -388,7 +356,6 @@ app.get('/api/tickets/:id', async (req, res) => {
       WHERE r.ticket_id = ?
       ORDER BY r.created_at ASC
     `, [ticketId]);
-
     res.json({ ...ticket, replies });
   } catch (err) {
     console.error('FETCH TICKET DETAIL ERR', err);
@@ -396,7 +363,6 @@ app.get('/api/tickets/:id', async (req, res) => {
   }
 });
 
-// Post a reply to a ticket (admins only)
 app.post('/api/tickets/:id/reply', async (req, res) => {
   const ticketId = req.params.id;
   const { uid, message } = req.body;
@@ -404,13 +370,10 @@ app.post('/api/tickets/:id/reply', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Missing fields.' });
   }
   try {
-    // Verify user is admin
     const [users] = await pool.query(
       'SELECT is_admin FROM users WHERE id = ?', [uid]
     );
-    if (!users.length) return res.status(401).json({ success: false, error: 'Invalid user.' });
-    if (!users[0].is_admin) return res.status(403).json({ success: false, error: 'Admins only.' });
-
+    if (!users.length || !users[0].is_admin) return res.status(403).json({ success: false, error: 'Admins only.' });
     await pool.query(
       'INSERT INTO ticket_replies (ticket_id, admin_uid, message) VALUES (?, ?, ?)',
       [ticketId, uid, message]
@@ -423,7 +386,34 @@ app.post('/api/tickets/:id/reply', async (req, res) => {
 });
 
 
-// REMOVED: All password reset functionality has been deleted.
+// =======================================================
+// ===== FRONTEND PAGE-SERVING ROUTES =====
+// =======================================================
+
+// This section serves your HTML pages. It should come AFTER all your API routes.
+
+// Serve the main page (homepage) for the root URL
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'index.html'));
+});
+
+// Serve the key generation page for the /generate-key URL
+app.get('/generate-key', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'generate-key.html'));
+});
+
+// This will handle the /reset-password URL if you add that page back.
+// It serves the main index.html, and you would use client-side JS to show the correct modal.
+app.get('/reset-password', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'index.html'));
+});
+
+// A catch-all route for any other URL that doesn't match an API route or a page.
+// It sends the main index.html page, which is common for Single Page Applications.
+// IMPORTANT: This must be the VERY LAST route before app.listen().
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'index.html'));
+});
 
 
 // ===== START SERVER =====
