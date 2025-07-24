@@ -19,14 +19,10 @@ app.use(cors());
 app.use(express.json());
 
 // ===== STATIC FILE SERVING =====
-// Serve files from the 'uploads' directory at the /uploads URL path
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
 app.use('/uploads', express.static(UPLOAD_DIR));
-
-// Serve any other static files (like CSS, images) from a 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
-
 
 // ===== MYSQL POOL =====
 const pool = mysql.createPool({
@@ -60,6 +56,7 @@ const pool = mysql.createPool({
       CREATE TABLE IF NOT EXISTS scripts (
         id INT AUTO_INCREMENT PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
+        slug VARCHAR(255) UNIQUE NOT NULL,
         placeId VARCHAR(50) NOT NULL,
         thumbnail VARCHAR(255) NOT NULL,
         scriptCode TEXT NOT NULL,
@@ -123,6 +120,15 @@ const pool = mysql.createPool({
     console.error('Error creating ticket_replies table:', e);
   }
 })();
+
+// ===== SLUGIFY HELPER =====
+function slugify(str) {
+  return str.toString().toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 
 // =======================================================
 // ===== API ROUTES =====
@@ -226,12 +232,25 @@ app.post('/api/upload-script', async (req, res) => {
       [uid]
     );
     if (!users.length || !users[0].is_admin) return res.status(403).json({ error: 'Admins only' });
+
+    let slug = slugify(title);
+    // Ensure unique slug (append random if exists)
+    let trySlug = slug, count = 1;
+    while (true) {
+      const [exists] = await pool.query('SELECT id FROM scripts WHERE slug = ?', [trySlug]);
+      if (!exists.length) break;
+      trySlug = `${slug}-${Math.random().toString(36).substring(2, 7)}`;
+      count++;
+      if (count > 10) { return res.status(500).json({ error: 'Could not generate unique slug.' }); }
+    }
+    slug = trySlug;
+
     await pool.query(
-      `INSERT INTO scripts (title, placeId, thumbnail, scriptCode, uploader_id)
-       VALUES (?, ?, ?, ?, ?)`,
-      [title, placeId, thumbnail, scriptCode, uid]
+      `INSERT INTO scripts (title, slug, placeId, thumbnail, scriptCode, uploader_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [title, slug, placeId, thumbnail, scriptCode, uid]
     );
-    res.json({ success: true });
+    res.json({ success: true, slug });
   } catch (e) {
     console.error('Upload script error:', e);
     res.status(500).json({ error: 'Server error' });
@@ -241,13 +260,30 @@ app.post('/api/upload-script', async (req, res) => {
 app.get('/api/scripts', async (req, res) => {
   try {
     const [scripts] = await pool.query(`
-      SELECT id, title, placeId, thumbnail, scriptCode, uploader_id, uploaded_at
+      SELECT id, title, slug, placeId, thumbnail, scriptCode, uploader_id, uploaded_at
       FROM scripts
       ORDER BY uploaded_at DESC
     `);
     res.json(scripts);
   } catch (e) {
     console.error('Fetch scripts error:', e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// New endpoint: get a script by slug
+app.get('/api/script', async (req, res) => {
+  const { slug } = req.query;
+  if (!slug) return res.status(400).json({ error: 'Missing slug' });
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, title, slug, placeId, thumbnail, scriptCode, uploader_id, uploaded_at FROM scripts WHERE slug = ? LIMIT 1',
+      [slug]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    res.json(rows[0]);
+  } catch (e) {
+    console.error('Fetch script by slug error:', e);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -385,12 +421,9 @@ app.post('/api/tickets/:id/reply', async (req, res) => {
   }
 });
 
-
 // =======================================================
 // ===== FRONTEND PAGE-SERVING ROUTES =====
 // =======================================================
-
-// This section serves your HTML pages. It should come AFTER all your API routes.
 
 // Serve the main page (homepage) for the root URL
 app.get('/', (req, res) => {
@@ -402,6 +435,11 @@ app.get('/generate-key', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'generate-key.html'));
 });
 
+// Serve the single script detail page for pretty URLs like /scripts/:slug
+app.get('/scripts/:slug', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'script.html'));
+});
+
 // This will handle the /reset-password URL if you add that page back.
 // It serves the main index.html, and you would use client-side JS to show the correct modal.
 app.get('/reset-password', (req, res) => {
@@ -409,12 +447,9 @@ app.get('/reset-password', (req, res) => {
 });
 
 // A catch-all route for any other URL that doesn't match an API route or a page.
-// It sends the main index.html page, which is common for Single Page Applications.
-// IMPORTANT: This must be the VERY LAST route before app.listen().
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
-
 
 // ===== START SERVER =====
 app.listen(PORT, () => {
