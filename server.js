@@ -30,22 +30,7 @@ const pool = mysql.createPool({
   user:     process.env.DB_USER,
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
 });
-
-// ===== TEST DATABASE CONNECTION =====
-(async () => {
-  try {
-    const connection = await pool.getConnection();
-    console.log('Database connected successfully');
-    connection.release();
-  } catch (error) {
-    console.error('Database connection failed:', error);
-    process.exit(1);
-  }
-})();
 
 // ===== ENSURE TABLES =====
 (async () => {
@@ -75,7 +60,6 @@ const pool = mysql.createPool({
         placeId VARCHAR(50) NOT NULL,
         thumbnail VARCHAR(255) NOT NULL,
         scriptCode TEXT NOT NULL,
-        description TEXT NULL,
         uploader_id INT NOT NULL,
         uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (uploader_id) REFERENCES users(id)
@@ -238,9 +222,9 @@ app.post('/api/avatar', upload.single('avatar'), async (req, res) => {
 
 // ===== SCRIPTS API ROUTES =====
 app.post('/api/upload-script', async (req, res) => {
-  const { uid, title, placeId, thumbnail, scriptCode, description } = req.body;
+  const { uid, title, placeId, thumbnail, scriptCode } = req.body;
   if (!uid || !title || !placeId || !thumbnail || !scriptCode) {
-    return res.status(400).json({ error: 'Missing required fields' });
+    return res.status(400).json({ error: 'Missing fields' });
   }
   try {
     const [users] = await pool.query(
@@ -262,9 +246,9 @@ app.post('/api/upload-script', async (req, res) => {
     slug = trySlug;
 
     await pool.query(
-      `INSERT INTO scripts (title, slug, placeId, thumbnail, scriptCode, description, uploader_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [title, slug, placeId, thumbnail, scriptCode, description || null, uid]
+      `INSERT INTO scripts (title, slug, placeId, thumbnail, scriptCode, uploader_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [title, slug, placeId, thumbnail, scriptCode, uid]
     );
     res.json({ success: true, slug });
   } catch (e) {
@@ -275,13 +259,11 @@ app.post('/api/upload-script', async (req, res) => {
 
 app.get('/api/scripts', async (req, res) => {
   try {
-    console.log('API: Fetching scripts from database...');
     const [scripts] = await pool.query(`
-      SELECT id, title, slug, placeId, thumbnail, scriptCode, description, uploader_id, uploaded_at
+      SELECT id, title, slug, placeId, thumbnail, scriptCode, uploader_id, uploaded_at
       FROM scripts
       ORDER BY uploaded_at DESC
     `);
-    console.log(`API: Found ${scripts.length} scripts`);
     res.json(scripts);
   } catch (e) {
     console.error('Fetch scripts error:', e);
@@ -289,33 +271,16 @@ app.get('/api/scripts', async (req, res) => {
   }
 });
 
-// Get a script by slug
-app.get('/api/script/:slug', async (req, res) => {
-  const { slug } = req.params;
-  if (!slug) return res.status(400).json({ error: 'Missing slug' });
-  try {
-    const [rows] = await pool.query(
-      'SELECT id, title, slug, placeId, thumbnail, scriptCode, description, uploader_id, uploaded_at FROM scripts WHERE slug = ? LIMIT 1',
-      [slug]
-    );
-    if (!rows.length) return res.status(404).json({ error: 'Script not found' });
-    res.json(rows[0]);
-  } catch (e) {
-    console.error('Fetch script by slug error:', e);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Alternative endpoint for backward compatibility
+// New endpoint: get a script by slug
 app.get('/api/script', async (req, res) => {
   const { slug } = req.query;
   if (!slug) return res.status(400).json({ error: 'Missing slug' });
   try {
     const [rows] = await pool.query(
-      'SELECT id, title, slug, placeId, thumbnail, scriptCode, description, uploader_id, uploaded_at FROM scripts WHERE slug = ? LIMIT 1',
+      'SELECT id, title, slug, placeId, thumbnail, scriptCode, uploader_id, uploaded_at FROM scripts WHERE slug = ? LIMIT 1',
       [slug]
     );
-    if (!rows.length) return res.status(404).json({ error: 'Script not found' });
+    if (!rows.length) return res.status(404).json({ error: 'Not found' });
     res.json(rows[0]);
   } catch (e) {
     console.error('Fetch script by slug error:', e);
@@ -326,13 +291,12 @@ app.get('/api/script', async (req, res) => {
 // ===== COUNTERS API ROUTES =====
 app.get('/api/counters', async (req, res) => {
   try {
-    const onlineUsers = Math.floor(Math.random() * 50) + 20; // Random between 20-70
+    const onlineUsers = 42; // Placeholder, replace with your logic
     const [[row]] = await pool.query('SELECT COUNT(*) AS total FROM `keys`');
     const keysGenerated = row.total;
     res.json({ onlineUsers, keysGenerated });
-  } catch (e) {
-    console.error('Counters error:', e);
-    res.json({ onlineUsers: 42, keysGenerated: 0 });
+  } catch {
+    res.json({ onlineUsers: 0, keysGenerated: 0 });
   }
 });
 
@@ -457,111 +421,37 @@ app.post('/api/tickets/:id/reply', async (req, res) => {
   }
 });
 
-// ===== HEALTH CHECK =====
-app.get('/health', async (req, res) => {
-  try {
-    await pool.query('SELECT 1');
-    res.json({ status: 'healthy', timestamp: new Date().toISOString() });
-  } catch (error) {
-    res.status(500).json({ status: 'unhealthy', error: error.message });
-  }
-});
-
 // =======================================================
 // ===== FRONTEND PAGE-SERVING ROUTES =====
 // =======================================================
 
-// Helper function to safely serve files
-function safeServeFile(res, filePath, fallbackPath = null) {
-  if (fs.existsSync(filePath)) {
-    res.sendFile(filePath);
-  } else if (fallbackPath && fs.existsSync(fallbackPath)) {
-    res.sendFile(fallbackPath);
-  } else {
-    res.status(404).send('Page not found');
-  }
-}
-
 // Serve the main page (homepage) for the root URL
 app.get('/', (req, res) => {
-  const indexPath = path.join(__dirname, 'index.html');
-  const viewsIndexPath = path.join(__dirname, 'views', 'index.html');
-  safeServeFile(res, indexPath, viewsIndexPath);
+  res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
 
 // Serve the key generation page for the /generate-key URL
 app.get('/generate-key', (req, res) => {
-  const keyPath = path.join(__dirname, 'generate-key.html');
-  const viewsKeyPath = path.join(__dirname, 'views', 'generate-key.html');
-  safeServeFile(res, keyPath, viewsKeyPath);
+  res.sendFile(path.join(__dirname, 'views', 'generate-key.html'));
 });
 
-// Serve the scripts page for both /scripts and /scripts/:slug URLs
-app.get('/scripts/:slug?', (req, res) => {
-  const scriptsPath = path.join(__dirname, 'scripts.html');
-  const viewsScriptsPath = path.join(__dirname, 'views', 'scripts.html');
-  const scriptPath = path.join(__dirname, 'script.html');
-  const viewsScriptPath = path.join(__dirname, 'views', 'script.html');
-  
-  // Try scripts.html first, then script.html as fallback
-  if (fs.existsSync(scriptsPath)) {
-    res.sendFile(scriptsPath);
-  } else if (fs.existsSync(viewsScriptsPath)) {
-    res.sendFile(viewsScriptsPath);
-  } else if (fs.existsSync(scriptPath)) {
-    res.sendFile(scriptPath);
-  } else if (fs.existsExists(viewsScriptPath)) {
-    res.sendFile(viewsScriptPath);
-  } else {
-    res.status(404).send('Scripts page not found');
-  }
+// Serve the single script detail page for pretty URLs like /scripts/:slug
+app.get('/scripts/:slug', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'script.html'));
 });
 
-// Handle reset password page
+// This will handle the /reset-password URL if you add that page back.
+// It serves the main index.html, and you would use client-side JS to show the correct modal.
 app.get('/reset-password', (req, res) => {
-  const indexPath = path.join(__dirname, 'index.html');
-  const viewsIndexPath = path.join(__dirname, 'views', 'index.html');
-  safeServeFile(res, indexPath, viewsIndexPath);
-});
-
-// Dashboard route (if you have one)
-app.get('/dashboard', (req, res) => {
-  const dashboardPath = path.join(__dirname, 'dashboard.html');
-  const viewsDashboardPath = path.join(__dirname, 'views', 'dashboard.html');
-  const indexPath = path.join(__dirname, 'index.html');
-  
-  if (fs.existsSync(dashboardPath)) {
-    res.sendFile(dashboardPath);
-  } else if (fs.existsSync(viewsDashboardPath)) {
-    res.sendFile(viewsDashboardPath);
-  } else {
-    res.sendFile(indexPath); // Fallback to index
-  }
+  res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
 
 // A catch-all route for any other URL that doesn't match an API route or a page.
 app.get('*', (req, res) => {
-  const indexPath = path.join(__dirname, 'index.html');
-  const viewsIndexPath = path.join(__dirname, 'views', 'index.html');
-  safeServeFile(res, indexPath, viewsIndexPath);
-});
-
-// ===== GRACEFUL SHUTDOWN =====
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  await pool.end();
-  process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-  console.log('SIGINT received, shutting down gracefully');
-  await pool.end();
-  process.exit(0);
+  res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
 
 // ===== START SERVER =====
 app.listen(PORT, () => {
-  console.log(`🚀 Server listening on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🗄️  Database host: ${process.env.DB_HOST || 'localhost'}`);
+  console.log(`Server listening on port ${PORT}`);
 });
