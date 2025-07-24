@@ -146,12 +146,6 @@ function slugify(str) {
     .replace(/^-+|-+$/g, '');
 }
 
-// ===== ERROR HANDLING MIDDLEWARE =====
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
-
 // =======================================================
 // ===== API ROUTES =====
 // =======================================================
@@ -281,13 +275,13 @@ app.post('/api/upload-script', async (req, res) => {
 
 app.get('/api/scripts', async (req, res) => {
   try {
-    console.log('Fetching scripts from database...');
+    console.log('API: Fetching scripts from database...');
     const [scripts] = await pool.query(`
       SELECT id, title, slug, placeId, thumbnail, scriptCode, description, uploader_id, uploaded_at
       FROM scripts
       ORDER BY uploaded_at DESC
     `);
-    console.log(`Found ${scripts.length} scripts`);
+    console.log(`API: Found ${scripts.length} scripts`);
     res.json(scripts);
   } catch (e) {
     console.error('Fetch scripts error:', e);
@@ -516,7 +510,7 @@ app.get('/scripts/:slug?', (req, res) => {
     res.sendFile(viewsScriptsPath);
   } else if (fs.existsSync(scriptPath)) {
     res.sendFile(scriptPath);
-  } else if (fs.existsSync(viewsScriptPath)) {
+  } else if (fs.existsExists(viewsScriptPath)) {
     res.sendFile(viewsScriptPath);
   } else {
     res.status(404).send('Scripts page not found');
@@ -567,7 +561,7 @@ process.on('SIGINT', async () => {
 
 // ===== START SERVER =====
 app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Database host: ${process.env.DB_HOST || 'localhost'}`);
+  console.log(`🚀 Server listening on port ${PORT}`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🗄️  Database host: ${process.env.DB_HOST || 'localhost'}`);
 });
