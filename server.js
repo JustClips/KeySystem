@@ -18,12 +18,10 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// ===== STATIC FILE SERVING =====
+// ===== STATIC FILE SERVING for uploads only =====
 const UPLOAD_DIR = path.join(__dirname, 'Uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
 app.use('/uploads', express.static(UPLOAD_DIR));
-
-// No public static serving needed, since frontend is on Dreamhost
 
 // ===== MYSQL POOL =====
 const pool = mysql.createPool({
@@ -151,6 +149,11 @@ function slugify(str) {
 // =======================================================
 // ===== API ROUTES =====
 // =======================================================
+
+// Health check route
+app.get('/', (req, res) => {
+  res.send('API is running');
+});
 
 // ===== AUTH & USER API ROUTES =====
 app.post('/api/register', async (req, res) => {
@@ -290,8 +293,8 @@ app.get('/api/scripts', async (req, res) => {
 });
 
 // New endpoint: get a script by slug
-app.get('/api/script', async (req, res) => {
-  const { slug } = req.query;
+app.post('/api/script', async (req, res) => {
+  const { slug } = req.body;
   if (!slug) return res.status(400).json({ error: 'Missing slug' });
   try {
     const [rows] = await pool.query(
