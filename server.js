@@ -19,7 +19,7 @@ app.use(cors());
 app.use(express.json());
 
 // ===== STATIC FILE SERVING =====
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
+const UPLOAD_DIR = path.join(__dirname, 'Uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
 app.use('/uploads', express.static(UPLOAD_DIR));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -56,7 +56,7 @@ const pool = mysql.createPool({
       CREATE TABLE IF NOT EXISTS scripts (
         id INT AUTO_INCREMENT PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
-        slug VARCHAR(255) UNIQUE NOT NULL,
+        slug VARCHAR(255) UNIQUE NOT NOT NULL,
         placeId VARCHAR(50) NOT NULL,
         thumbnail VARCHAR(255) NOT NULL,
         scriptCode TEXT NOT NULL,
@@ -337,7 +337,7 @@ app.post('/api/verify-key', async (req, res) => {
     res.json({ valid: true, user_id: rows[0].user_id });
   } catch (e) {
     console.error('Verify key error:', e);
-    res.status(500).json({ valid: false, error: 'Server error' });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -435,9 +435,14 @@ app.get('/generate-key', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'generate-key.html'));
 });
 
+// Serve the scripts grid page
+app.get('/scripts', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'scripts.html'));
+});
+
 // Serve the single script detail page for pretty URLs like /scripts/:slug
 app.get('/scripts/:slug', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'script.html'));
+  res.sendFile(path.join(__dirname, 'views', 'scripts.html'));
 });
 
 // This will handle the /reset-password URL if you add that page back.
