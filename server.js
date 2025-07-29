@@ -477,47 +477,6 @@ app.post('/api/tickets/:id/reply', async (req, res) => {
   }
 });
 
-// =======================================================
-// ===== FRONTEND PAGE-SERVING ROUTES =====
-// =======================================================
-
-// Serve the main page (homepage) for the root URL
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-// Serve the key generation page for the /generate-key URL
-app.get('/generate-key', (req, res) => {
-  res.sendFile(path.join(__dirname, 'generate-key.html'));
-});
-
-// Redirect /scripts to root (no separate grid page)
-app.get('/scripts', (req, res) => {
-  res.redirect('/');
-});
-
-// Serve the single script detail page for pretty URLs like /scripts/:slug
-app.get('/scripts/:slug', (req, res) => {
-  const filePath = path.join(__dirname, 'scripts.html');
-  if (fs.existsSync(filePath)) {
-    res.sendFile(filePath);
-  } else {
-    console.error('scripts.html not found at:', filePath);
-    res.status(404).send('Script detail page not found.');
-  }
-});
-
-// This will handle the /reset-password URL if you add that page back.
-// It serves the main index.html, and you would use client-side JS to show the correct modal.
-app.get('/reset-password', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-// A catch-all route for any other URL that doesn't match an API route or a page.
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
 // Global error handler for better debugging
 app.use((err, req, res, next) => {
   console.error('Server error:', err.stack);
