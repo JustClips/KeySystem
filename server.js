@@ -22,7 +22,8 @@ app.use(express.json());
 const UPLOAD_DIR = path.join(__dirname, 'Uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
 app.use('/uploads', express.static(UPLOAD_DIR));
-app.use(express.static(path.join(__dirname, 'public')));
+
+// No public static serving needed, since frontend is on Dreamhost
 
 // ===== MYSQL POOL =====
 const pool = mysql.createPool({
@@ -120,7 +121,6 @@ const pool = mysql.createPool({
     console.error('Error creating ticket_replies table:', e);
   }
 
-  // New: Comments table
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS comments (
