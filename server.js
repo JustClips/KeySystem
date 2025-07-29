@@ -491,9 +491,9 @@ app.get('/generate-key', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'generate-key.html'));
 });
 
-// Serve the scripts grid page
+// Redirect /scripts to root (no separate grid page)
 app.get('/scripts', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'scripts.html'));
+  res.redirect('/');
 });
 
 // Serve the single script detail page for pretty URLs like /scripts/:slug
