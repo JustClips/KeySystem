@@ -31,7 +31,7 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
 });
 
-// ===== ENSURE TABLES =====
+// ===== ENSURE TABLES ===== (Comment out if DB is already created to reduce startup load)
 (async () => {
   try {
     await pool.query(`
@@ -150,7 +150,7 @@ function slugify(str) {
 // ===== API ROUTES =====
 // =======================================================
 
-// Health check route
+// Health check route to test if server is up
 app.get('/', (req, res) => {
   res.send('API is running');
 });
@@ -293,8 +293,8 @@ app.get('/api/scripts', async (req, res) => {
 });
 
 // New endpoint: get a script by slug
-app.post('/api/script', async (req, res) => {
-  const { slug } = req.body;
+app.get('/api/script', async (req, res) => {
+  const { slug } = req.query;
   if (!slug) return res.status(400).json({ error: 'Missing slug' });
   try {
     const [rows] = await pool.query(
@@ -487,6 +487,6 @@ app.use((err, req, res, next) => {
 });
 
 // ===== START SERVER =====
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server listening on port ${PORT}`);
 });
