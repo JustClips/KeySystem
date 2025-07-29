@@ -56,7 +56,7 @@ const pool = mysql.createPool({
       CREATE TABLE IF NOT EXISTS scripts (
         id INT AUTO_INCREMENT PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
-        slug VARCHAR(255) UNIQUE NOT NOT NULL,
+        slug VARCHAR(255) UNIQUE NOT NULL,
         placeId VARCHAR(50) NOT NULL,
         thumbnail VARCHAR(255) NOT NULL,
         scriptCode TEXT NOT NULL,
@@ -118,6 +118,24 @@ const pool = mysql.createPool({
     console.log('Ticket replies table ready');
   } catch (e) {
     console.error('Error creating ticket_replies table:', e);
+  }
+
+  // New: Comments table
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS comments (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        script_id INT NOT NULL,
+        user_id INT NOT NULL,
+        comment TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      )
+    `);
+    console.log('Comments table ready');
+  } catch (e) {
+    console.error('Error creating comments table:', e);
   }
 })();
 
@@ -284,6 +302,44 @@ app.get('/api/script', async (req, res) => {
     res.json(rows[0]);
   } catch (e) {
     console.error('Fetch script by slug error:', e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// New: Comments API routes
+app.get('/api/comments', async (req, res) => {
+  const { script_id } = req.query;
+  if (!script_id) return res.status(400).json({ error: 'Missing script_id' });
+  try {
+    const [comments] = await pool.query(`
+      SELECT c.id, c.comment, c.created_at, u.username
+      FROM comments c
+      JOIN users u ON c.user_id = u.id
+      WHERE c.script_id = ?
+      ORDER BY c.created_at DESC
+    `, [script_id]);
+    res.json(comments);
+  } catch (e) {
+    console.error('Fetch comments error:', e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/api/comments', async (req, res) => {
+  const { script_id, uid, comment } = req.body;
+  if (!script_id || !uid || !comment) return res.status(400).json({ error: 'Missing fields' });
+  try {
+    // Optional: Check if user exists
+    const [users] = await pool.query('SELECT id FROM users WHERE id = ?', [uid]);
+    if (!users.length) return res.status(404).json({ error: 'User not found' });
+
+    await pool.query(
+      'INSERT INTO comments (script_id, user_id, comment) VALUES (?, ?, ?)',
+      [script_id, uid, comment]
+    );
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Post comment error:', e);
     res.status(500).json({ error: 'Server error' });
   }
 });
