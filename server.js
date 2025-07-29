@@ -498,7 +498,13 @@ app.get('/scripts', (req, res) => {
 
 // Serve the single script detail page for pretty URLs like /scripts/:slug
 app.get('/scripts/:slug', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'scripts.html'));
+  const filePath = path.join(__dirname, 'views', 'scripts.html');
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    console.error('scripts.html not found at:', filePath);
+    res.status(404).send('Script detail page not found.');
+  }
 });
 
 // This will handle the /reset-password URL if you add that page back.
@@ -510,6 +516,12 @@ app.get('/reset-password', (req, res) => {
 // A catch-all route for any other URL that doesn't match an API route or a page.
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'index.html'));
+});
+
+// Global error handler for better debugging
+app.use((err, req, res, next) => {
+  console.error('Server error:', err.stack);
+  res.status(500).send('Internal Server Error - Check server logs for details.');
 });
 
 // ===== START SERVER =====
