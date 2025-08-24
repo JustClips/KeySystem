@@ -384,6 +384,29 @@ app.post('/api/generate-key', async (req, res) => {
   }
 });
 
+// ===== ADMIN KEY GENERATION ROUTE =====
+// Allows an admin to generate a key for a given user_id
+app.post('/api/admin-generate-key', async (req, res) => {
+  const { admin_uid, target_uid, hours } = req.body;
+  if (!admin_uid || !target_uid) return res.status(400).json({ error: 'Missing fields' });
+  try {
+    // Check admin privileges
+    const [adminRows] = await pool.query('SELECT is_admin FROM users WHERE id = ?', [admin_uid]);
+    if (!adminRows.length || !adminRows[0].is_admin) return res.status(403).json({ error: 'Admins only' });
+
+    const expiresAt = new Date(Date.now() + ((hours || 6) * 60 * 60 * 1000)); // default 6 hours
+    const newKey = crypto.randomBytes(24).toString('hex');
+    await pool.query(
+      'INSERT INTO `keys` (user_id, key_value, expires_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE key_value=?, expires_at=?',
+      [target_uid, newKey, expiresAt, newKey, expiresAt]
+    );
+    res.json({ key: newKey, expires_at: expiresAt });
+  } catch (e) {
+    console.error('Admin generate key error:', e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 app.post('/api/verify-key', async (req, res) => {
   const { key } = req.body;
   if (!key) return res.status(400).json({ valid: false, error: 'No key provided' });
@@ -397,6 +420,33 @@ app.post('/api/verify-key', async (req, res) => {
   } catch (e) {
     console.error('Verify key error:', e);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===== SECURE LOADER ENDPOINT (KEY-PROTECTED) =====
+// Place your loader.lua in the project root or adjust the path as needed!
+const LOADER_PATH = path.join(__dirname, 'loader.lua');
+
+app.get('/brainrot/loader', async (req, res) => {
+  const key = req.query.key;
+  if (!key) return res.status(400).send('-- Missing key');
+
+  try {
+    // Validate key is in DB and not expired
+    const [rows] = await pool.query(
+      'SELECT user_id FROM `keys` WHERE key_value = ? AND expires_at > NOW()',
+      [key]
+    );
+    if (!rows.length) return res.status(403).send('-- Invalid or expired key');
+
+    // Serve the loader script
+    if (!fs.existsSync(LOADER_PATH)) {
+      return res.status(404).send('-- Loader script not found');
+    }
+    res.type('text/plain').send(fs.readFileSync(LOADER_PATH, 'utf8'));
+  } catch (err) {
+    console.error('Loader endpoint error:', err);
+    res.status(500).send('-- Server error');
   }
 });
 
